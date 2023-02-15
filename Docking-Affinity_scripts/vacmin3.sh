@@ -3,12 +3,11 @@
 R=$1	# ignored
 L=$2	# ignored
 
-BASE=`dirname "$(readlink -f "$0")"`
-NUM_PROCS=8
-MINIMIZER='chimera'
-
 banner vacmin
 
+BASE=`dirname "$(readlink -f "$0")"`
+
+NUM_PROCS=8
 njobs=0
 
 for mod in aff ; do
@@ -47,26 +46,13 @@ for mod in aff ; do
         	# we could decrease njobs here
             fi
 	    (
-        	target=*_${name}[-_]*/${name}_vacuo.pdb
+                # this check is unneeded because amber_dp_optimize3 already
+                # does it before anything else
+        	target=amber_${name}-H_310K/${name}_vacuo.pdb
 		#echo $target
         	#ls -l $target
         	if [ ! -s "$target" ] ; then
-                    echo "Minimizing $model"
-		    
-                    case "$MINIMIZER" in
-                      'chimera')
-                        $BASE/chimera_dp_optimize2.sh $model
-                        ;;
-                      'amber')
-                        $BASE/amber_dp_optimize2.sh $model 
-                        ;;
-                      'babel')
-                        $BASE/obminimize2.bash gaff $model
-                        ;;
-                      *)
-                        echo "Error: unknown minimizer"
-                        ;;
-                    esac
+                    $BASE/amber_dp_optimize3.sh $model $R $L #&
         	fi
 	    ) &     
         done
@@ -74,4 +60,3 @@ for mod in aff ; do
     ) 
     cd -
 done
-

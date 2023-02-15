@@ -5,7 +5,7 @@ L=$2	# ignored
 
 BASE=`dirname "$(readlink -f "$0")"`
 NUM_PROCS=8
-MINIMIZER='chimera'
+MINIMIZER='amber'
 
 banner vacmin
 
@@ -47,13 +47,12 @@ for mod in aff ; do
         	# we could decrease njobs here
             fi
 	    (
-        	target=*_${name}[-_]*/${name}_vacuo.pdb
+        	target=amber_${name}-H_310K/${name}_vacuo.pdb
 		#echo $target
         	#ls -l $target
         	if [ ! -s "$target" ] ; then
-                    echo "Minimizing $model"
-		    
-                    case "$MINIMIZER" in
+                
+                    case "$minimizer" in
                       'chimera')
                         $BASE/chimera_dp_optimize2.sh $model
                         ;;
@@ -64,7 +63,7 @@ for mod in aff ; do
                         $BASE/obminimize2.bash gaff $model
                         ;;
                       *)
-                        echo "Error: unknown minimizer"
+                        echo "Unknown minimization error"
                         ;;
                     esac
         	fi
@@ -74,4 +73,3 @@ for mod in aff ; do
     ) 
     cd -
 done
-

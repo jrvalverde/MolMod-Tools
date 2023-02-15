@@ -8,16 +8,6 @@ L=$2
 #BASE=`(cd ../script ; pwd)`
 BASE=`dirname "$(readlink -f "$0")"`
 
-comment=''
-# this allows inline comments of the form
-${comment# whatever (even multiline)}
-# while
-unset comment
-# will allow inline comments of the form
-${comment# whatever}
-${comment+ whatever
-	   (and even multiline comments) }
-
 
 for m in aff ; do
 #for i in aff ; do
@@ -29,7 +19,6 @@ for m in aff ; do
     outd=$m/summary
     mkdir -p $outd
     
-if [ "yes" == "no" ] ; then 	### JR ### temporarily removed
     echo "E (in vacuo)"
     # minimization energy 'in vacuo'
     # if not already minimized
@@ -45,7 +34,6 @@ if [ "yes" == "no" ] ; then 	### JR ### temporarily removed
     fi
     # extract energies 'in vacuo'
     rm -f $m/stats/energy-${R}_${L}.info
-    # for amber (chimera or gromacs)
     for mod in $m/vacmin/*/ ; do
         ene=`ls $mod/E=*`
         #remove up to last '='
@@ -62,12 +50,6 @@ if [ "yes" == "no" ] ; then 	### JR ### temporarily removed
     | sort > $m/stats/energy-${R}_${L}.info  
     sort $m/stats/energy-${R}_${L}.info > $outd/energy-${R}_${L}.tab
 
-#    # for obminimize
-    ls $m/vacmin/*/E=* \
-    | sed -e "s#$m/vacmin/obm_##g" -e 's#/E=#	 #g' -e 's/mmff94/mmff94_vacuo/g' \
-    | sort \
-    > $m/stats/energy-AB_C.info
-    sort $m/stats/energy-${R}_${L}.info > $outd/energy-${R}_${L}.tab
 
     echo "E (in solution)"
     # minimization energy in solution
@@ -79,7 +61,7 @@ if [ "yes" == "no" ] ; then 	### JR ### temporarily removed
         for i in $m/solmin/*/*_solvent.pdb ; do
            if [ ! -s $m/models/`basename $i` ] ; then
                # chain Z contains the solvent and ions
-              egrep -v '^.{20} Z' $i > $m/models/`basename $i`
+	       egrep -v '^.{20} Z' $i > $m/models/`basename $i`
            fi
        done
     fi
@@ -96,7 +78,6 @@ if [ "yes" == "no" ] ; then 	### JR ### temporarily removed
     | sort > $m/stats/Senergy-${R}_${L}.info
     sort $m/stats/Senergy-${R}_${L}.info > $outd/Senergy-${R}_${L}.tab
 
-fi ### JR ### temporarily removed
 
     echo "H-bonds, clashes and contacts"
     # create stats files
@@ -172,7 +153,7 @@ fi ### JR ### temporarily removed
 
     echo "RMSD"
     # Compute RMSD if not already done
-    if [ ! -s $m/stats/RMSD-${R}_${L}.tab ] ; then
+    if [ ! -s $m/stats/RMSD$-${R}_${L}.tab ] ; then
         $BASE/rmsd2.sh $R $L
     fi
     tail -n +2 $m/stats/RMSD-${R}_${L}.tab \

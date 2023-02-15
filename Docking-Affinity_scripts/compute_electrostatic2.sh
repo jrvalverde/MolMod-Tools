@@ -63,31 +63,49 @@ for i in "${!name[@]}" ; do
 	    
             # lookup charges in the mol2 files
             mol2=aff/chains/${base}_${a1chain}.mol2
-#          echo
-#	  echo "a1charge='egrep \"^ +[0-9]+ +$a1name .* $a1resno +[A-Z]+$a1resno \" $mol2 \
-#                      | cut -c69-80'"
+	    
+	    # ALT METHOD
+	    # remove from line 1 to line containing @<TRIPOS>ATOM
+	    # we cannot use  '1,/@<TRIPOS>BOND/!d' to then keep up to
+	    # @<TRIPOS>BOND because that would also keep the tag line
+	    # so we print everything and when we reach @<TRIPOS>BOND, we quit
+	    # format of mol2 ATOM record is
+	    # atom_id atom_name x y z atom_type [subst_id [subst_name [charge [status_bit]]]]
+	    # so we look for the atom with  
+	    # '^[[:blank:]]*[0-9]*[[:blank:]]*$a1name[[:blank:]]*'
+	    # and then, since we have no status bit, for the charge,
+	    # as the last white-separated field
+#	    a1charge=`cat $mol2 \
+#	        | sed -e '1,/@<TRIPOS>ATOM/d' \
+#		| sed -n '/@<TRIPOS>BOND/q;p' \
+#		| grep "^[[:blank:]]*[0-9]*[[:blank:]]*$a1name[[:blank:]]*" \
+#		| sed -e 's/[[:blank:]]*$//g' -e 's/.*[[:blank:]]//g'`
+		
+          echo
+	  echo "a1charge='egrep \"^ +[0-9]+ +$a1name .* $a1resno +[A-Z]+$a1resno \" $mol2 \
+                      | cut -c69-80'"
             a1charge=`egrep "^ +[0-9]+ +$a1name .* $a1resno +[A-Z]+$a1resno " $mol2 \
                       | cut -c69-80`
             mol2=aff/chains/${base}_${a2chain}.mol2
-#          echo
-#	  echo "a2charge='egrep \"^ +[0-9]+ +$a2name .* $a2resno +[A-Z]+$a2resno \" $mol2 \
-#                      | cut -c69-80'"
+          echo
+	  echo "a2charge='egrep \"^ +[0-9]+ +$a2name .* $a2resno +[A-Z]+$a2resno \" $mol2 \
+                      | cut -c69-80'"
             a2charge=`egrep "^ +[0-9]+ +$a2name .* $a2resno +[A-Z]+$a2resno " $mol2 \
                       | cut -c69-80`
-#          echo
-#	  echo "A1: r=${a1resno} c=${a1chain} n=${a1name} q=${a1charge} x A2: r=${a2resno} c=${a2chain} n=${a2name} q=${a2charge} OV: ${overlap} $distance"
+          echo
+	  echo "A1: r=${a1resno} c=${a1chain} n=${a1name} q=${a1charge} x A2: r=${a2resno} c=${a2chain} n=${a2name} q=${a2charge} OV: ${overlap} $distance"
 
             # compute repulsion using Coulomb's law
             # NOTE: we are only considering contacting atoms. Other charges
             # may also have an effect
-#	  echo
-#	  echo "A1Q=$a1charge A2Q=$a2charge D=$distance"
-#            repulsion=`echo "scale=4 ; $a1charge * $a2charge / (${distance}^2)" | bc -l `
-#	  echo
-#	  echo "   repulsion=$repulsion"
+	  echo
+	  echo "A1Q=$a1charge A2Q=$a2charge D=$distance"
+            repulsion=`echo "scale=4 ; $a1charge * $a2charge / (${distance}^2)" | bc -l `
+	  echo
+	  echo "   repulsion=$repulsion"
             tot=`echo "scale=4 ; $tot + $repulsion" | bc -l`
-#	  echo
-#	  echo "   tot=$tot"
+	  echo
+	  echo "   tot=$tot"
 
             # A better calculation might be to run over all atoms
             # and if distance is > H2O-radius, quench the interaction

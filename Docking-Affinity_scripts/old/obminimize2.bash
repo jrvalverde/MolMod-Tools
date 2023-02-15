@@ -8,7 +8,7 @@ export PATH=$BABEL_PATH:$PATH
 export PATH=$CHIMERA_PATH:$PATH
 export PATH=$PROFIT_PATH:$PATH
 
-export babel=`which obabel`
+export babel=`which babel`
 export obminimize=`which obminimize`
 export chimera=`which chimera`
 export ctioga2=`which ctioga2`
@@ -16,12 +16,6 @@ export ProFit=`which ProFit`
 
 myname=`basename "${BASH_SOURCE[0]}"`
 mydir=`dirname "${BASH_SOURCE[0]}"`
-
-# defaults
-ff=gaff
-charges=''
-addH=no
-addHmethod=none
 
 function usage() {
     cat <<END
@@ -92,13 +86,13 @@ while true ; do
                         usage ; exit 1
                     fi
                     shift 2 ;;
-		*) echo "ERROR: Internal error on ($1)!" >&2 ; usage ; exit 1 ;;
+		*) echo "ERROR: Internal error!" >&2 ; usage ; exit 1 ;;
 	esac
 done
 
 
 
-echo $*
+
 
 # options can be listed with babel -L forcefields
 ff=${ff:$1}

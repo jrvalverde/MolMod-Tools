@@ -22,9 +22,12 @@ score_xscore=~/work/lenjuanes/script/score_xscore.sh
 # sudo dmidecode -t 4
 # sudo dmidecode -t 4 | egrep -i 'core (count|enabled)|thread count|Version'
 AVAIL_PROCS=`nproc`
-NUM_PROCS=$AVAIL_PROCS
-NUM_PROCS=$((AVAIL_PROCS / 3))
-NUM_PROCS=8
+#NUM_PROCS=$AVAIL_PROCS
+#NUM_PROCS=$((AVAIL_PROCS / 3))
+#NUM_PROCS=64
+NUM_PROCS=1
+
+nproc=0
 
 # get the real absolute path name of a file
 function realfile () {
@@ -50,7 +53,6 @@ function score() {
     local dir=aff
 
 #c=0
-    nproc=0
     for p in $dir/models/*.pdb ; do
 #if [ $c -eq 1000 ] ; then echo "KO"; return ; fi
 #(( c++ ))
@@ -62,18 +64,15 @@ function score() {
         local base=`basename $p .pdb`
         
         if (( nproc++ >= NUM_PROCS )); then
-            echo "WAITING BECAUSE nproc = $nproc NUM_PROCS=$NUM_PROCS"
 	    # if there are already too many jobs running, wait for one to 
 	    # finish before procceeding
             wait -n   # wait for one job to complete. Bash 4.3
             # we can decrease nproc here, but once we have reached
-	    # the maximum we'll likely substitute jobs one by one.
+	    # the maximum we'll substitute jobs one by one.
 	    (( nproc-- ))
-            echo "LAUNCHING SCORING FOR $p (nproc=$nproc)"
         fi
 
 	(
-            echo "COMPUTING DLSCORE of $p"
             # DLSCORE also computes vina and NNScore
 	    if [ ! -d $dir/dlscore ] ; then mkdir -p $dir/dlscore ; fi
 	    local dlscore_summary=$dir/dlscore/${base}_R=${R}_L=${L}
@@ -83,7 +82,7 @@ function score() {
             elif [ ! -s $dir/chains/${base}_${L}.mol2 ] ; then
                 echo "ERROR DLSCORE: $dir/chains/${base}_${L}.pdb does not exist"
             elif [ ! -s "${dlscore_summary}.csv" ] ; then
-		echo "DLSCORE $base"
+		#echo "DLSCORE $base"
 		$dlscore \
 	            --ligand $dir/chains/${base}_${L}.mol2 \
 		    --receptor $dir/chains/${base}_${R}.pdb \
@@ -186,6 +185,15 @@ function score() {
                 # we will collate them all later
                 echo "$base:	$dscore	$pcscore	$sascore" \
                 > ${dsx_summary}.inf
+		#
+		# other way to do it
+		echo -n "$base:	" > ${dsx_summary}.INF
+		grep "^ 0 " ${dsxR_summary}.txt \
+		  | cut -d'|' -f 4,6,8 \
+		  | tr -d ' ' \
+		  | sed -e 's/|/\t/g' -e 's/ \+//g' \
+		  >> ${dsx_summary}.INF
+		
             fi
 	    echo -n "score: "; cd -
 
@@ -227,6 +235,13 @@ function score() {
 
     echo 'model	DSX	PCS	SAS' > $dir/stats/dsx-${R}_${L}.info
     cat $dir/dsx/*.inf >> $dir/stats/dsx-${R}_${L}.info
+    cat $dir/dsx/*.INF >> $dir/stats/dsx-${R}_${L}.INFO
+    # even easier yet: do all at once
+    grep "^ 0 " *.tot.* \
+      | cut -d'|' -f 1,4,6,8 \
+      | tr -d ' ' \
+      | sed -e 's/|/\t/g' -e 's/^.*AB_//g' -e 's/_C[^\t]*//g' \
+      | sort > ../stats/dsx.INFOK
 
     # we don't add a header to the info file for xscore
     truncate -s 0 $dir/stats/xscore-${R}_${L}.info

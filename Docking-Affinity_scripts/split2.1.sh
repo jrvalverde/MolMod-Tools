@@ -59,6 +59,8 @@ for dir in aff ; do
         	  -e "/^HETATM/ s/^\(.\{21\}\)./\1$L/g" \
         	  ${comment# -e '/^CONECT /d' } \
             > $dir/clean/$name.pdb 
+	    # we should also ensure that the ligand atoms have unique names, 
+	    # probably in pdb_fix_ligand.sh
 	fi
 
 	# now work with the clean file
@@ -102,7 +104,7 @@ for dir in aff ; do
 END
 		    ### JR ### HACK: force QTPIE charges
 #		    if [ "${chain}" == "$L" ] ; then 
-#		        mv ${dir}/chains/${name}_${chain}.mol2 ${dir}/chains/${name}_${chain}.mol2.nc
+#		        mv ${dir}/chains/${name}_${chain}.mol2 ${dir}/chains/${name}_${chain}.mol2.nocharges
 #		    fi
 		    # check it worked
                     if [ ! -s ${dir}/chains/${name}_${chain}.pdb ] ; then
@@ -193,22 +195,22 @@ END
 
         # Next check if L contains more than one chain letter
         # and if so, build a combined file as well
-        if [ ${#R} -gt 1 ] ; then
+        if [ ${#L} -gt 1 ] ; then
             if [ ! -s $dir/chains/${name}_${L}.mol2 ] ; then
                 echo "Building combined ligand ${name}_${L}.(pdb|mol2)"
               if [ "YES" == "YES" ] ; then
-                for (( n=0 ; n < ${#R} ; n++ )); do 
-		    if [ ! -s "$dir/chains/${name}_${R:n:1}.pdb" -o \
-		         ! -s "$dir/chains/${name}_${R:n:1}.mol2" ] ; then
+                for (( n=0 ; n < ${#L} ; n++ )); do 
+		    if [ ! -s "$dir/chains/${name}_${L:n:1}.pdb" -o \
+		         ! -s "$dir/chains/${name}_${L:n:1}.mol2" ] ; then
 			echo "ERROR: ONE OR MORE RECEPTOR CHAINS DO NOT EXIST"
 		    fi
                 done
                 # this is the simplest way
-                $babel -ipdb $dir/chains/${name}_[$R].pdb \
-                      -opdb -O $dir/chains/${name}_$R.pdb
+                $babel -ipdb $dir/chains/${name}_[$L].pdb \
+                      -opdb -O $dir/chains/${name}_$L.pdb
                 $babel --partialcharge mmff94 \
-                      -imol2 $dir/chains/${name}_[$R].mol2 \
-                      -omol2 -O $dir/chains/${name}_$R.mol2
+                      -imol2 $dir/chains/${name}_[$L].mol2 \
+                      -omol2 -O $dir/chains/${name}_$L.mol2
               else
                 # This is too convoluted 
                 ### JR ### to be removed eventually
@@ -236,14 +238,24 @@ END
               fi
             fi
         fi
-
+	
 	# Final sanity check (we check for mol2 since it implies PDB)
         if [ ! -s $dir/chains/${name}_${R}.mol2 ] ; then
             echo "ERROR: Couldn't build receptor $dir/chains/${name}_${R}.(pdb|mol2)"
         fi
         if [ ! -s $dir/chains/${name}_${L}.mol2 ] ; then
             echo "ERROR: Couldn't build ligand $dir/chains/${name}_${R}.(pdb|mol2)"
-        fi
+#        else
+#           # This is useless: we also need numbering in the PDB file so that
+#           # contacts identify unique atom names as well.
+#	    # Ensure that the ligand mol2 file has unique atom names so we
+#	    # can later identify them for computing electrostatic charge 
+#	    # interactions; this has to be done before computing contacts
+#	    cp $dir/chains/${name}_${L}.mol2 $dir/chains/${name}_${L}.mol2.ok
+#	    cat $dir/chains/${name}_${L}.mol2.ok \
+#	      | sed -E 's/^[[:blank:]]*([0-9]+)[[:space:]]+([A-Za-z]+[0-9]*)[[:space:]]/\t\1\t\2\1\t/' \
+#	      > $dir/chains/${name}_${L}.mol2
+	fi
 
         
         ) &	# end of parallel job

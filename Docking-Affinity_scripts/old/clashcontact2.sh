@@ -23,8 +23,7 @@ banner steric
 R=$1
 L=$2
 
-alias python=python2
-ALLTOGETHER=NO
+ALLTOGETHER=YES
 ONEBYONE=YES
 
 

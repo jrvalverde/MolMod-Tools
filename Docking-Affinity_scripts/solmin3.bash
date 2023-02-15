@@ -68,7 +68,7 @@ NUM_PROCS=8
 #
 #set -x
 
-# This will process every model in '$1/models'
+# This will process every three letter (AAcode+digit+digit) directory
 # 	First ir creates a subdir called vacmin inside
 #	Moves into it
 #	spawns a background subprocess that will optimize all models
@@ -79,15 +79,15 @@ function solmin() {
     R=$2
     L=$3
 
-    if [ ! -d $dir ] ; then return ; fi
+    if [ ! -d $dir ] ; then continue ; fi
     echo "Minimizing models in $dir/models"
 
     # prepare models by superposing and centering them
-    mkdir -p $dir/cmodels	# centered models
-    mkdir -p $dir/csmodels	# centered and superposed
+    mkdir -p $dir/cmodels
+    mkdir -p $dir/csmodels
     mkdir -p $dir/stats
     
-    pending=0
+    count=0
     # check first if we need to compute any solution minimization
     for model in $dir/models/*.pdb ; do
         # only process unprocessed files
@@ -100,16 +100,16 @@ function solmin() {
         base=`basename $model .pdb`
         if [ -s $dir/models/${base}_solvent.pdb ] ; then 
             echo " done"
-            #echo $pending
+            #echo $count
             continue 
         else
             echo " not done"
-            pending=$((pending + 1))
-            #echo $pending
+            count=$((count + 1))
+            #echo $count
         fi
     done
-    #echo "models pending solvent minimization=$pending"
-    if [ $pending -eq 0 ] ; then 
+    #echo "COUNT=$count"
+    if [ $count -eq 0 ] ; then 
         echo "solmin: all models in $dir/models have already been minimized"
         return
     else
@@ -117,8 +117,6 @@ function solmin() {
     fi
 
     
-    # As long as there is any pendig we need to center and superpose
-    # it with all others
     echo "Centering and superposing models to get maximal dimensions"
     csmdims=$dir/stats/csmdims
     truncate -s 0 $csmdims
@@ -200,7 +198,7 @@ END
     for model in ../csmodels/*.pdb ; do
         base=`basename $model .pdb`
         # only process non-minimized files
-        # there should be no minimized files in ../csmodels 
+        # there should be no non-minimized files in ../csmodels 
         # but just in case...
         if [[ "$model" == *"amber"*".pdb" ]] ; then continue ; fi
         if [[ "$model" == *"opls"*".pdb" ]] ; then continue ; fi

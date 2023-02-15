@@ -10,21 +10,8 @@ banner rmsd
 R=$1
 L=$2
 
-ref=${3:-receptor.pdb}		# reference is the receptor molecule
-
-
-# Other methods to get the number of available processors:
-#=$(grep -c processor /proc/cpuinfo)
-# grep 'cpu cores' /proc/cpuinfo
-# hwinfo --cpu --short
-# getconf _NPROCESSORS_ONLN
-# sudo dmidecode -t 4
-# sudo dmidecode -t 4 | egrep -i 'core (count|enabled)|thread count|Version'
-AVAIL_PROCS=`nproc`
-NUM_PROCS=$AVAIL_PROCS
-NUMP_ROCS=$((AVAIL_PROCS / 3))
-#NUM_PROCS=64
-NUM_PROCS=1
+ref=refrec.pdb		# reference is the receptor molecule
+NUM_PROCS=8
 
 if [ ! -s $ref ] ; then
     echo "$ref does not exist or is empty"
@@ -38,7 +25,7 @@ for wd in aff ; do
     mkdir -p $wd/rmsd
 
     nproc=0
-    for i in $wd/clean/*.pdb ; do
+    for i in $wd/models/*.pdb ; do
         #echo "Computing RMSD for $i"
         chk=$i
         match=$wd/rmsd/`basename $i .pdb`-${R}_${L}.rmsd

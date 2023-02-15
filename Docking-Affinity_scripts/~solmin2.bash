@@ -118,7 +118,7 @@ function solmin() {
 
     
     # As long as there is any pendig we need to center and superpose
-    # it with all others
+    # it with all others to get the maximal dimensions
     echo "Centering and superposing models to get maximal dimensions"
     csmdims=$dir/stats/csmdims
     truncate -s 0 $csmdims
@@ -132,9 +132,9 @@ function solmin() {
 
         no=$((no + 1))
         
-        # To minimize in solution we need to define a PBC box
+        # To minimize in solution we need to define a PBC box;
         # for this, we will center the model, superpose each to
-        # a reference (the first model), and compute each model
+        # a reference (the first model), and compute th
         # dimensions.
         # We will then find the maximal dimensions and calculate
         # a box size large enough to accommodate any of the models

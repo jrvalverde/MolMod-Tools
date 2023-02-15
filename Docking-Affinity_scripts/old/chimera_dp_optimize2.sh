@@ -39,7 +39,7 @@ END
 fi
 
 # save last energy (and gradient) for quick inspection
-lastE=`grep "^Potential energy: " chim_${f}_amber/${f}_chimera.log | gep -v nan | tail -1` 
+lastE=`grep "^Potential energy: " chim_${f}_amber/${f}_chimera.log | tail -1` 
 echo "$lastE" > "chim_${f}_amber/E="`echo "$lastE" | cut -d' ' -f3 | tr -d ','`
 
 echo "$f done"
