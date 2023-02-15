@@ -1,0 +1,85 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"><title>Periodic Box Display</title></head><body bgcolor="white">
+<pre>############################################################
+#
+# PBCBOX:
+# -------
+#
+# VERSION: 1.2
+#
+# REQUIREMENTS:
+#   The package <a href="http://www.ks.uiuc.edu/Research/vmd/script_library/scripts/pbctools/">PBCtools</a> (v1.1 or later) from the VMD script library.
+#
+# DESCRIPTION:
+#     Draws a box around the periodic unit cell boundaries. Also provides a 
+#   procedure that automatically updates the box when the frame is changed and 
+#   the unit cell changes.  The procedures require the vmd unit cell properties 
+#   to be set.
+#
+# DOWNLOAD FILE:
+#   <a href="http://www.ks.uiuc.edu/Research/vmd/script_library/scripts/pbcbox/pbcbox.tcl">pbcbox.tcl</a>
+#
+# PROCEDURES:
+#   pbcbox [OPTIONS...]
+#
+#     Creates a box that shows the boundaries of the unit cell of 
+#   molecule $molid. Returns the list of GIDs.
+#
+#   Options:
+#     -molid $molid     Add the box to the molecule $molid. (default: top)
+#     -style lines|dashed|arrows|tubes
+#                       Choose the style of the box. (default: lines)
+#     -width $w	        Use $width as the width of the lines/arrows/tubes.
+#		        (default: 3)
+#     -resolution $res  Use $res as the resolution of the cylinders in "tubes" 
+#                       style. (default: 8)
+#     -origin $origin   $origin has to be a Tcl-list containing three numerical 
+#                       values $a $b $c. Place the origin of the box at 
+#                       ($a*A, $b*B, $c*C) (default: {-0.5 -0.5 -0.5})
+#     -positive         Equal to "-origin {0.0 0.0 0.0}".
+#     -parallelepiped|-rectangular
+#                       Draw the box be drawn as a parallelpiped,
+#                       or as the corresponding rectangular box.
+#                       (default: parallelepiped)
+#
+#
+#   pbcbox_update [OPTIONS...]
+#
+#      Creates a box that shows the boundaries of the unit cell of molecule
+#   $molid. The box is automatically redrawn/updated when the frame is changed.
+#
+#   Options:
+#     -state on|off|toggle     
+#                       Turn the box on, off or toggle the state.
+#     -color $color     Draw the box in $color.
+#   All options from the pbcbox procedure can also be used.
+#
+#  vmd_draw_pbcbox $molid [OPTIONS]
+#
+#      Procedure to be used with the VMD "draw" procedure. All options from 
+#    the pbcbox procedure can be used.
+#
+# EXAMPLE USAGE:
+#   require pbcbox
+#   set box [ pbcbox -width 5 -style dashed ]
+#   draw delete $box
+#
+#   pbcbox_update -molid top -style arrows -width 5 -rectangular
+#   pbcbox_update
+#
+#   draw pbcbox -width 7
+#
+# AUTHOR:
+#         Olaf Lenz 
+#         olenz _at_ fias.uni-frankfurt.de
+#
+# This script copies a lot of the ideas and code from Jan Saams script 
+# pbctools (that is used anyway) and Axel Kohlmeiers script 
+# vmd_draw_unitcell.
+#
+# Feel free to send comments, bugs, etc.
+############################################################
+</pre>
+
+
+</body></html>
