@@ -1,0 +1,25 @@
+open_receptor ./receptor.pdb
+open_ligand ./ligand.pdb
+docking_correlation 1
+docking_refine 0
+docking_grid_size 0.6
+max_docking_solutions      3000
+receptor_range_angle 180
+docking_receptor_stepsize 7.5
+ligand_range_angle 180
+docking_ligand_stepsize 7.5
+docking_r12_range 40
+docking_r12_substeps 0
+docking_main_scan 20
+docking_main_search 25
+docking_fft_device 1
+docking_fft_type 1
+activate_docking
+save_range 1 20 ./ hex-result pdb
+unify_models 1
+save_range 1 100 ./ hex-results pdb
+save_both ./hex-docking.pdb
+save_transform ./hex-transform.hex
+save_matrix ./hex-matrix.hex
+close_all
+exit

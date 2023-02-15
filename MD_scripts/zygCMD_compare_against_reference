@@ -1,0 +1,95 @@
+# Obtain the reference molecule
+cp ../../../align3d/syntenin-2-dp.pdb syntenin-free-x2.pdb
+# and index it
+gmx make_ndx -f syntenin-free-x2.pdb -o syntenin-free-x2.ndx <<END
+chain A | chain B
+"C-alpha" & "chA_chB"
+"chA_chB" & "C-alpha"
+q
+END
+
+
+# obtain the first structure in the trajectory
+echo System | gmx trjconv -f md_01.xtc -s md_01.tpr \
+    -o md_01.0.pdb \
+    -dump 0 -pbc mol -conect
+
+
+# align the reference molecule to the first structure in the trajectory
+mkdir str-align
+cp syntenin-free-x2.pdb str-align
+cp md_01.0.pdb str-align
+
+cd str-align
+# superpose the structures
+theseus_align -o md_01.0.pdb -f md_01.0.pdb syntenin-free-x2.pdb \
+    |& tee theseus.stdouterr
+
+# index the superposed structures
+~/work/lenjuanes/script/make_ext_index.sh theseus_syntenin-free-x2.pdb
+~/work/lenjuanes/script/make_ext_index.sh theseus_md_01.0.pdb
+cd ..
+
+cp str-align/theseus_syntenin-free-x2.pdb ref_syntenin-free-x2.pdb
+#cp str-align/theseus_syntenin-free-x2.ndx ref_syntenin-free-x2.ndx
+
+
+
+# Obtain overall RMSD (which will include the PBMs)
+gmx rms -s ref_syntenin-free-x2.pdb \
+        -f md_01_complex_fit.xtc \
+        -o ref_rmsd.xvg \
+        -tu ns \
+        << END
+C-alpha
+C-alpha
+END
+
+# make a PNG plot 1000x1000
+rm ref_rmsd.PNG 
+grace -hardcopy -hdevice PNG \
+      -printfile ref_rmsd.PNG \
+      ref_rmsd.xvg \
+      -pexec 'runavg(S0,100)' \
+      -fixed 1000 1000 
+display ref_rmsd.PNG
+
+
+
+# Create new groups to join the reference chains and extract their C-alpha
+gmx make_ndx -f ref_syntenin-free-x2.pdb -o ref_syntenin-free-x2.ndx << END
+chain A | chainB
+"chA_chB" & "C-alpha"
+"C-alpha" & "chA_chB"
+q
+END
+
+# Create new groups to join the match chains and extract their C-alpha
+gmx make_ndx -f md_01.0.pdb -o md_01.0.ndx <<END
+chain A | chain B
+"chA_chB" & "C-alpha"
+"C-alpha" & "chA_chB"
+q
+END
+
+# Compute RMSD using the md_01.0.ndx index so we can select the C-alpha
+# of the desired chains
+gmx rms -s ref_syntenin-free-x2.pdb \
+        -f md_01.xtc \
+        -o ref_rmsd_CA_chAB.xvg \
+        -tu ns \
+        -n md_01.0.ndx \
+        << END
+chA_chB_&_C-alpha
+chA_chB_&_C-alpha
+END
+
+# make a PNG plot 1000x1000
+rm ref_rmsd_CA_chAB.PNG 
+grace -hardcopy -hdevice PNG \
+      -printfile ref_rmsd_CA_chAB.PNG \
+      ref_rmsd_CA_chAB.xvg \
+      -pexec 'runavg(S0,100)' \
+      -fixed 1000 1000
+display ref_rmsd_CA_chAB.PNG
+

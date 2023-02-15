@@ -1,0 +1,37 @@
+# compute total charge
+#   Menu Actions / Surface / show.  This will make the surface and report 
+#total surface area in the reply log (menu Favorites / Reply Log).
+#
+#   Menu Tools /  Structure Analysis / Add Charge.  This will assign 
+#charges to atoms.  It will allow you to add hydrogens if your structure 
+#does not have them, a necessary step for determining charges.
+#
+#   Chimera select command to select atoms which have at least 1 square 
+#Angstrom of solvent accessible area:
+#
+#     sel #0@/areaSAS>1
+#
+#   Menu Tools / Structure Analysis / Attribute Calculator.  This will 
+#let you sum the charges on the selected atoms.  Switch it to attribute 
+#for "molecules", use formula
+#
+#     sum(atom.charge)
+#
+#and turn on the switch "Restrict formula domain to current selection" 
+#and press Apply.
+
+
+# sel surface atoms with negative charge
+#
+sel #0@/areaSAS>0.5 and charge < 0
+#
+# use formulas sum(atom.charge) sum(atom.areaSAS)
+
+# sel surface atoms with positive charge
+#
+sel #0@/areaSAS>0.5 and charge > 0
+#
+# use formulas sum(atom.charge) sum(atom.areaSAS)
+
+# coulombic surface coloring
+# APBS
