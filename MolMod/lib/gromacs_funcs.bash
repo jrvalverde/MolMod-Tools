@@ -1,0 +1,4592 @@
+#!/bin/bash
+#
+#	GROMACS utility functions
+#
+#
+# AUTHOR(S)
+#	'banner' is based on the bash/ksh93 version of 'banner' by jlliagre
+#		Apr 15 '12 at 11:52
+#		http://stackoverflow.com/questions/652517/whats-the-deal-with-the-banner-command
+#
+#	All other code is
+#		(C) Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es 2014
+#	and
+#		Licensed under (at your option) either GNU/GPL or EUPL
+#
+# LICENSE:
+#
+#	Copyright 2014 JOSE R VALVERDE, CNB/CSIC.
+#
+#	EUPL
+#
+#       Licensed under the EUPL, Version 1.1 or \u2013 as soon they
+#       will be approved by the European Commission - subsequent
+#       versions of the EUPL (the "Licence");
+#       You may not use this work except in compliance with the
+#       Licence.
+#       You may obtain a copy of the Licence at:
+#
+#       http://ec.europa.eu/idabc/eupl
+#
+#       Unless required by applicable law or agreed to in
+#       writing, software distributed under the Licence is
+#       distributed on an "AS IS" basis,
+#       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#       express or implied.
+#       See the Licence for the specific language governing
+#       permissions and limitations under the Licence.
+#
+#	GNU/GPL
+#
+#       This program is free software: you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation, either version 3 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+inline='no'
+BASH_LIBDIR=`dirname $0`
+
+# commodity definitions for readability
+TRUE=0
+FALSE=1
+#
+OK=0
+ERROR=1
+
+# defaults
+nthreads=0	# parallel threads to use (0 means guess)
+maxdd=0		# maximum distance for bonded interactions with DD (nm) (0 means guess)
+
+# NAME
+# 	banner - print large banner
+#
+# SYNOPSIS
+#	banner text
+#
+# DESCRIPTION
+#	banner prints out the first 10 characters of "text" in large letters
+#
+function banner {
+    if [ $# -ne 1 ] ; then errexit " 'message' " ; fi
+    
+    #
+    # Taken from http://stackoverflow.com/questions/652517/whats-the-deal-with-the-banner-command
+    #
+    #	Msg by jlliagre
+    #		Apr 15 '12 at 11:52
+    #
+    # ### JR ###
+    #	Input:	A text up to 10 letter wide
+    # This has been included because banner(1) is no longer a standard
+    # tool in many Linux systems. This way we avoid having a dependency
+    # that might not be met.
+    # It is often installed through package 'sysvbanner'
+    #	npm has an ascii-banner tool (npm -g install ascii-banner)
+    # Other alternatives are toilet(1) and figlet(1)
+
+    typeset A=$((1<<0))
+    typeset B=$((1<<1))
+    typeset C=$((1<<2))
+    typeset D=$((1<<3))
+    typeset E=$((1<<4))
+    typeset F=$((1<<5))
+    typeset G=$((1<<6))
+    typeset H=$((1<<7))
+
+    function outLine
+    {
+      typeset r=0 scan
+      for scan
+      do
+        typeset l=${#scan}
+        typeset line=0
+        for ((p=0; p<l; p++))
+        do
+          line="$((line+${scan:$p:1}))"
+        done
+        for ((column=0; column<8; column++))
+          do
+            [[ $((line & (1<<column))) == 0 ]] && n=" " || n="#"
+            raw[r]="${raw[r]}$n"
+          done
+          r=$((r+1))
+        done
+    }
+
+    function outChar
+    {
+        case "$1" in
+        (" ") outLine "" "" "" "" "" "" "" "" ;;
+        ("0") outLine "BCDEF" "AFG" "AEG" "ADG" "ACG" "ABG" "BCDEF" "" ;;
+        ("1") outLine "F" "EF" "F" "F" "F" "F" "F" "" ;;
+        ("2") outLine "BCDEF" "AG" "G" "CDEF" "B" "A" "ABCDEFG" "" ;;
+        ("3") outLine "BCDEF" "AG" "G" "CDEF" "G" "AG" "BCDEF" "" ;;
+        ("4") outLine "AF" "AF" "AF" "BCDEFG" "F" "F" "F" "" ;;
+        ("5") outLine "ABCDEFG" "A" "A" "ABCDEF" "G" "AG" "BCDEF" "" ;;
+        ("6") outLine "BCDEF" "A" "A" "BCDEF" "AG" "AG" "BCDEF" "" ;;
+        ("7") outLine "BCDEFG" "G" "F" "E" "D" "C" "B" "" ;;
+        ("8") outLine "BCDEF" "AG" "AG" "BCDEF" "AG" "AG" "BCDEF" "" ;;
+        ("9") outLine "BCDEF" "AG" "AG" "BCDEF" "G" "G" "BCDEF" "" ;;
+        ("a") outLine "" "" "BCDE" "F" "BCDEF" "AF" "BCDEG" "" ;;
+        ("b") outLine "B" "B" "BCDEF" "BG" "BG" "BG" "ACDEF" "" ;;
+        ("c") outLine "" "" "CDE" "BF" "A" "BF" "CDE" "" ;;
+        ("d") outLine "F" "F" "BCDEF" "AF" "AF" "AF" "BCDEG" "" ;;
+        ("e") outLine "" "" "BCDE" "AF" "ABCDEF" "A" "BCDE" "" ;;
+        ("f") outLine "CDE" "B" "B" "ABCD" "B" "B" "B" "" ;;
+        ("g") outLine "" "" "BCDEG" "AF" "AF" "BCDE" "F" "BCDE" ;;
+        ("h") outLine "B" "B" "BCDE" "BF" "BF" "BF" "ABF" "" ;;
+        ("i") outLine "C" "" "BC" "C" "C" "C" "ABCDE" "" ;;
+        ("j") outLine "D" "" "CD" "D" "D" "D" "AD" "BC" ;;
+        ("k") outLine "B" "BE" "BD" "BC" "BD" "BE" "ABEF" "" ;;
+        ("l") outLine "AB" "B" "B" "B" "B" "B" "ABC" "" ;;
+        ("m") outLine "" "" "ACEF" "ABDG" "ADG" "ADG" "ADG" "" ;;
+        ("n") outLine "" "" "BDE" "BCF" "BF" "BF" "BF" "" ;;
+        ("o") outLine "" "" "BCDE" "AF" "AF" "AF" "BCDE" "" ;;
+        ("p") outLine "" "" "ABCDE" "BF" "BF" "BCDE" "B" "AB" ;;
+        ("q") outLine "" "" "BCDEG" "AF" "AF" "BCDE" "F" "FG" ;;
+        ("r") outLine "" "" "ABDE" "BCF" "B" "B" "AB" "" ;;
+        ("s") outLine "" "" "BCDE" "A" "BCDE" "F" "ABCDE" "" ;;
+        ("t") outLine "C" "C" "ABCDE" "C" "C" "C" "DE" "" ;;
+        ("u") outLine "" "" "AF" "AF" "AF" "AF" "BCDEG" "" ;;
+        ("v") outLine "" "" "AG" "BF" "BF" "CE" "D" "" ;;
+        ("w") outLine "" "" "AG" "AG" "ADG" "ADG" "BCEF" "" ;;
+        ("x") outLine "" "" "AF" "BE" "CD" "BE" "AF" "" ;;
+        ("y") outLine "" "" "BF" "BF" "BF" "CDE" "E" "BCD" ;;
+        ("z") outLine "" "" "ABCDEF" "E" "D" "C" "BCDEFG" "" ;;
+        ("A") outLine "D" "CE" "BF" "AG" "ABCDEFG" "AG" "AG" "" ;;
+        ("B") outLine "ABCDE" "AF" "AF" "ABCDE" "AF" "AF" "ABCDE" "" ;;
+        ("C") outLine "CDE" "BF" "A" "A" "A" "BF" "CDE" "" ;;
+        ("D") outLine "ABCD" "AE" "AF" "AF" "AF" "AE" "ABCD" "" ;;
+        ("E") outLine "ABCDEF" "A" "A" "ABCDE" "A" "A" "ABCDEF" "" ;;
+        ("F") outLine "ABCDEF" "A" "A" "ABCDE" "A" "A" "A" "" ;;
+        ("G") outLine "CDE" "BF" "A" "A" "AEFG" "BFG" "CDEG" "" ;;
+        ("H") outLine "AG" "AG" "AG" "ABCDEFG" "AG" "AG" "AG" "" ;;
+        ("I") outLine "ABCDE" "C" "C" "C" "C" "C" "ABCDE" "" ;;
+        ("J") outLine "BCDEF" "D" "D" "D" "D" "BD" "C" "" ;;
+        ("K") outLine "AF" "AE" "AD" "ABC" "AD" "AE" "AF" "" ;;
+        ("L") outLine "A" "A" "A" "A" "A" "A" "ABCDEF" "" ;;
+        ("M") outLine "ABFG" "ACEG" "ADG" "AG" "AG" "AG" "AG" "" ;;
+        ("N") outLine "AG" "ABG" "ACG" "ADG" "AEG" "AFG" "AG" "" ;;
+        ("O") outLine "CDE" "BF" "AG" "AG" "AG" "BF" "CDE" "" ;;
+        ("P") outLine "ABCDE" "AF" "AF" "ABCDE" "A" "A" "A" "" ;;
+        ("Q") outLine "CDE" "BF" "AG" "AG" "ACG" "BDF" "CDE" "FG" ;;
+        ("R") outLine "ABCD" "AE" "AE" "ABCD" "AE" "AF" "AF" "" ;;
+        ("S") outLine "CDE" "BF" "C" "D" "E" "BF" "CDE" "" ;;
+        ("T") outLine "ABCDEFG" "D" "D" "D" "D" "D" "D" "" ;;
+        ("U") outLine "AG" "AG" "AG" "AG" "AG" "BF" "CDE" "" ;;
+        ("V") outLine "AG" "AG" "BF" "BF" "CE" "CE" "D" "" ;;
+        ("W") outLine "AG" "AG" "AG" "AG" "ADG" "ACEG" "BF" "" ;;
+        ("X") outLine "AG" "AG" "BF" "CDE" "BF" "AG" "AG" "" ;;
+        ("Y") outLine "AG" "AG" "BF" "CE" "D" "D" "D" "" ;;
+        ("Z") outLine "ABCDEFG" "F" "E" "D" "C" "B" "ABCDEFG" "" ;;
+        (".") outLine "" "" "" "" "" "" "D" "" ;;
+        (",") outLine "" "" "" "" "" "E" "E" "D" ;;
+        (":") outLine "" "" "" "" "D" "" "D" "" ;;
+        ("!") outLine "D" "D" "D" "D" "D" "" "D" "" ;;
+        ("/") outLine "G" "F" "E" "D" "C" "B" "A" "" ;;
+        ("\\") outLine "A" "B" "C" "D" "E" "F" "G" "" ;;
+        ("|") outLine "D" "D" "D" "D" "D" "D" "D" "D" ;;
+        ("+") outLine "" "D" "D" "BCDEF" "D" "D" "" "" ;;
+        ("-") outLine "" "" "" "BCDEF" "" "" "" "" ;;
+        ("*") outLine "" "BDF" "CDE" "D" "CDE" "BDF" "" "" ;;
+        ("=") outLine "" "" "BCDEF" "" "BCDEF" "" "" "" ;;
+        (*) outLine "ABCDEFGH" "AH" "AH" "AH" "AH" "AH" "AH" "ABCDEFGH" ;;
+        esac
+    }
+
+    function outArg
+    {
+      typeset l=${#1} c r
+      for ((c=0; c<l; c++))
+      do
+        outChar "${1:$c:1}"
+      done
+      echo
+      for ((r=0; r<8; r++))
+      do
+        printf "%-*.*s\n" "${COLUMNS:-80}" "${COLUMNS:-80}" "${raw[r]}"
+        raw[r]=""
+      done
+    }
+
+    for i
+    do
+      outArg "$i"
+      echo
+    done
+}
+
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	strindex - lookup in a string a substring
+# #
+# # SYNOPSIS
+# #	strindex "a large string" "string"
+# #
+# # DESCRIPTION
+# #	strindex returns the position of the substring in the large
+# #	string, if found, or -1 if it is not present
+# #
+# function strindex() { 
+#     if [ $# -ne 2 ] ; then errexit "largestring substring" ; fi
+# 
+#     # return position of $2 in $1, or -1 if not found
+#     x="${1%%$2*}"
+#     [[ $x = $1 ]] && echo -1 || echo ${#x}
+# }
+# 
+# 
+# # NAME
+# #	pdb_atom_renumber - renumber atoms in a PDB file
+# #
+# # SYNOPSIS
+# #	pdb_atom_renumber infile.pdb outfile
+# #
+# # DESCRIPTION
+# #	Reads an input PDB file (must have a '.pdb' or '.brk' extension)
+# #	and renumbers all ATOM, ANISOU and TER records starting from 1
+# #	saving the result in the specified output file.
+# #
+# #	The input file name is mandatory and must refer to an existing file
+# #	If the output file name is not given, then $1.renum will be used.
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function pdb_atom_renumber {
+#     if [ $# -lt 1 ] ; thenerrexit "pdbfile [outfile]" 
+#     else notecont $* ; fi
+# 
+#     # Expect a PDB input file name as first argument and an output file as
+#     # second argument
+#     local pdb=$1
+#     local out=${2:-$pdb.renum}
+# 
+#     notecont "renumbering $pdb to $out"
+#     if [ ! -e $pdb ] ; then
+#         warncont "$1 not found" 
+#         return $ERROR
+#     fi
+# 
+#     local dir=`dirname $pdb`
+#     local fin="${pdb##*/}"
+#     local ext="${fin##*.}"
+#     local nam="${fin%.*}"
+#     if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" ] ; then
+#         warncont "Input file must be a PDB file."
+#         return $ERROR
+#     fi
+#     
+#     local entries="(^ATOM  )|(^TER   )|(^TER)|(^ANISOU)|(^HETATM)"
+#     echo -n "" > "$out"	# truncate any previously existing $pdbout
+#     i=1
+#     cat $pdb | while read line ; do
+#         #echo "LINE! $line"
+# 	echo "$line" | egrep -cq "$entries" > /dev/null 2>&1
+#         if [ $? -eq 0 ] ; then
+#             idx=`printf "%5d" $i`
+#             echo "$line" | sed -e "s/\(.\{6\}\).....\(.*\)/\1$idx\2/" >> "$out"
+#             i=$((i+1))
+#         else
+#             # check ENDMDL and reset counter
+# 	    [[ `strindex $line "ENDMDL"` -eq "0" ]] && i=1 # && echo "BINGO!"
+#             echo "$line" >> "$out"
+#         fi
+#     done
+# }
+echo -n ''
+else
+    source $FUNCS_BASE/pdb_atom_renumber.bash
+fi
+
+
+if [ "$inline" == "yes" ] ; then
+# function add_H_babel {
+#     local pdb=$1
+#     local charges=$2
+#     local pH=${3:-7.365}
+#     local ext="${input##*.}"
+#     local nam="${in%.*}"
+#     if [ "$ext" != "pdb" -o "$ext" != "brk" ] ; then
+#         echo "$pdb doesn't seem to be a PDB file"
+#         return
+#     fi
+#     echo "Adding H to $pdb using OpenBabel"
+#     # Add H at a pH of 7.365 computing Gasteiger charges
+#     #	NOTE: babel will add all H at the end of the
+#     #	PDB file, all called H, leaving an unsorted
+#     #	PDB without specific H atom names.
+#     #	CAVEAT: if there are no CONECT records (e.g.
+#     #	after docking) then babel might possibly add H
+#     #	to the wrong atoms.
+#     charges="gasteiger" # or "mmff94" or "eem"
+#     $babel -h -p $pH --center --partialcharge $charges \
+#           -ipdb $pdb -opdb ${nam}+H.pdb
+# }
+# 
+# function add_H_chimera {
+#     local pdb=$1
+#     local ext="${input##*.}"
+#     local nam="${in%.*}"
+#     if [ "$ext" != "pdb" -o "$ext" != "brk" ] ; then
+#         echo "$pdb doesn't seem to be a PDB file"
+#         return
+#     fi
+#     echo "Adding H to $pdb using UCSF Chimera"
+#     #
+#     # Add H using Chimera. It will often do the right thing
+#     #	When no CONECT records are available, Chimera might
+#     #	be able to recognize some hetero groups (like nucleic
+#     #	acids).
+#     #
+#     $chimera --nogui <<END
+#         open $pdb
+#         addh inisolation true hbond true useHisName true useGluName true useAspName true useLysName true useCysName true
+#         addcharge all chargeModel 99sb method gasteiger
+#         write format pdb 0 ${nam}+H.pdb
+#         stop now
+# END
+# 
+# }
+# 
+# # NAME
+# #	add_H - add hydrogens to a PDB file
+# #
+# # SYNOPSIS
+# #	add_H input.pdb method pH
+# #
+# # DESCRIPTION
+# #	Adds hydrogens to the specified input file using one of a number
+# #	of methods. The supported methods are
+# #		babel chimera reduce haad gromacs none
+# #
+# #	The available methods will depend on the existence of the required
+# #	external programs. At a minimum, 'none' (do not add H) is always
+# # 	available.
+# #
+# #	Currently, the recommended methods are chimera or reduce
+# #
+# #	pH is optional, defaults to 7.365 and is only used by 'babel'
+# #
+# #	At the end, you will get two files named after the input file,
+# #		$input-H.pdb	- the input file without H
+# #		$input+H.pdb	- the input file with the added H (if any)
+# #
+# #	It relies on external variables to locate auxiliary programs, but
+# #	tries to provide sensible defaults in case these external variables
+# #	are not defined. It also relies on the existence of a WATER global
+# #	variable to use if the 'gromacs' method is selected.
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function add_H {
+#     if [ $# -lt 1 ] ; then echo "Err: ${FUNCNAME[0]} pdbfile [method] [ph]" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local pdb=$1
+#     local method=${2:-'none'}
+#     local pH=${3:-'7.365'}
+#     
+#     # provide defaults for external variables
+#     local chimera=${chimera:-`which chimera`}
+#     local babel=${babel:-`which babel`}
+#     local reduce=${reduce:-`which reduce`}
+#     local haad=${haad:-`which haad`}
+#     local ff=${ff:-opls-aa}
+#     local WATER=${WATER:-'tip4p'}
+# 
+# 
+#     if [ "$method" == "help" ] ; then
+#         echo "add_H input.pdb {method} {pH}"
+#         echo "	method is optional and can be any of"
+#         echo "		babel, chimera, reduce, haad, gromacs, none"
+#         echo "	pH is optional, only used by babel, and defaults to 7.365"
+#         echo ""
+#         return $OK
+#     fi
+#     
+#     echo ""
+#     echo ">>> add_H: adding H to $pdb using $method at a pH of $pH"
+#     echo ""
+# 
+#     if [ ! -e "$pdb" ] ; then
+#         echo "add_H: $1 not found" ; return $ERROR
+#     fi
+#     
+#     # dissect input file name
+#     local dir=`dirname $pdb`
+#     local fin="${pdb##*/}"
+#     local ext="${fin##*.}"
+#     local nam="${fin%.*}"
+#     if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" ] ; then
+#         echo "add_H ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+# 
+#     # work on input file directory
+#     cd $dir
+#     if [ ! -e ${nam}-H.pdb -o ! -e ${nam}+H.pdb ] ; then
+#         #
+#         # remove all H (we'll re-add them to suit our desired pH)
+#         #
+#         grep -v ".\{76\} H\b" $fin | \
+#         grep -v "^CONECT " | \
+#         grep -v "^WARNING" \
+# 	    > ${nam}-H.pdb
+#         if [ $method == 'babel' -a -x "$babel" ] ; then
+# 	  if [ "YES" = "YES" ] ; then
+#     	    echo "add_H: Adding H using OpenBabel ($babel) at pH $pH"
+#             # Add H at a pH of 7.365 (default) computing Gasteiger charges
+#             #	NOTE: babel will add all H at the end of the
+#             #	PDB file, all called H, leaving an unsorted
+#             #	PDB without specific H atom names.
+#             #	CAVEAT: if there are no CONECT records (e.g.
+#             #	after docking) then babel might possibly add H
+#             #	to the wrong atoms.
+# 	    #	WARNING: TRY TO AVOID THIS AS A GENERAL RULE
+# 	    local charges="gasteiger" # or "mmff94" or "eem" or...
+# 	    $babel -h -p $pH --center --partialcharge $charges \
+#                   -ipdb ${nam}-H.pdb -opdb ${nam}+H.pdb
+# 	  else
+# 	    add_H_babel ${nam}-H.pdb $pH
+# 	  fi
+#         elif [ $method == 'chimera' -a -x "$chimera" ] ; then
+# 	  if [ "YES" == "YES" ] ; then
+#             echo "add_H: Adding H using UCSF Chimera"
+#             #
+#             # Add H using Chimera. It will often do the right thing
+#             #	When no CONECT records are available, Chimera may
+#             #	be able to recognize some hetero groups (like nucleic
+#             #	acids).
+#             #
+#             $chimera --nogui <<END
+#             	open ${nam}-H.pdb
+#             	addh inisolation true hbond true useHisName true useGluName true useAspName true useLysName true useCysName true
+#             	addcharge all chargeModel 99sb method gasteiger
+#             	write format pdb 0 ${nam}+H.pdb
+#                 stop now
+# END
+# 	  else
+# 	    add_H_chimera ${nam}-H.pdb
+# 	  fi
+#     	elif [ $method == 'reduce' -a -x "$reduce" ] ; then
+# 	    # Add H using Kinemage reduce
+# 	    # 	When no CONECT records are available, reduce can
+# 	    #	use a database of hetero-compounds to recognize
+# 	    #   many of them
+# 	    #
+#             echo "add_H: Adding H using reduce"
+#             $reduce  -build ${nam}-H.pdb > ${nam}.H.pdb 
+#             pdb_atom_renumber ${nam}.H.pdb ${nam}+H.pdb
+#             rm $nam.H.pdb
+#     	elif [ $method == 'haad' -a -x "$haad" ] ; then
+# 	    # Add H using HAAD
+# 	    #
+#             echo "add_H: Adding H using HAAD"
+#             echo "add_H:"
+#             echo "add_H: As a general rule you should avoid using HAAD"
+#             echo "add_H: HAAD SHOULD BE RESERVED FOR SYSTEMS WITH ONLY A SINGLE PROTEIN CHAIN"
+#             echo "add_H:"
+#             # sanity checks: HAAD CANNOT ADD H TO HETERO COMPOUNDS
+#             #	HAAD ONLY WORKS FOR PROTEINS
+#             #	NOTE: THE SECOND TEST (WC) SHOULD NOT BE NEEDED
+#             #grep -q "^HETATM" $nam.pdb || [[ `wc -l < "$ligands"` != "0" ]] && \
+#             grep -q "^HETATM" $nam.pdb &&
+#             	echo "add_H WARNING: HAAD only works for ONE protein chain" ; \
+#                 echo "add_H WARNING: ANY OTHER CHAINS OR LIGANDS WILL BE DELETED"
+# 
+#             $haad ${nam}-H.pdb
+#             mv ${nam}-H.pdb.h $nam.H.pdb
+#             pdb_atom_renumber ${nam}.H.pdb ${nam}+H.pdb
+#             rm ${nam}.H.pdb
+#         elif [ $method == 'gromacs' ] ; then
+#             # Add H using Gromacs
+# 	    #	Like babel, it is unable to recognize most ligands
+# 	    #	but unlike babel, at least it will place H in the
+# 	    #	file in suitable positions.
+# 	    #
+#             #	NOTE: for OPLS-AA we should use TIP4P water
+# 	    echo "add_H: Adding H using gromacs"
+#             $pdb2gmx -ff $ff -f ${nam}-H.pdb -o ${nam}+H.pdb \
+#                     -p ${nam}+H.top \
+# 	            -water $WATER -chainsep id_or_ter
+#             if [ $? -ne 0 ] ; then return $ERROR ; fi
+#         else
+# 	    # method = 'none' or undefined
+# 	    #	Do not add H. The user guarantees that the H are all
+# 	    #	correct and present, hopefully because s/he has added
+# 	    #	and manually verified them before invoking us.
+# 	    #
+#             echo "add_H: NOTICE: Using original geometry as is"
+#             # no H to add, use input structure 'as is'
+#             egrep  '(^ATOM)|(^HETATM)|(^CONECT)|(^TER)' ${nam}.pdb > ${nam}+H.pdb
+# 	fi
+#     else
+#         echo "add_H: using ${nam}-H and ${nam}+H from a previous run"
+#     fi
+# 
+#     echo "add_H: ${nam}-H and ${nam}+H created"
+# 
+#     # return to wherever we were formerly
+#     cd -
+#     return $OK
+# 
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/add_H.bash
+fi
+
+
+
+# NAME
+#	split_complex - split a complex into protein and ligands
+#
+# SYNOPSIS
+#	split_complex input.pdb
+#
+# DESCRIPTION
+#	Split a complex specified by input.pdb into protein and ligands. 
+#
+#	On exit, two files will have been created: Protein.pdb and Ligands.pdb
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function split_complex {
+    if [ $# -lt 1 ] ; then errexit "pdbfile [ligandfile]"
+    else notecont $* ; fi
+
+    # split a PDB file into protein and ligands
+    # if a LIGANDS file exists, use it, otherwise try our best
+    local pdb=$1
+    local ligands=${2:-LIGANDS}
+
+    echo ""
+    notecont "splitting $pdb into protein and ligands"
+    echo ""
+
+    if [ ! -e $pdb ] ; then
+        warncont "$1 not found" ; return $ERROR
+    fi
+    
+    local dir=`dirname $pdb`
+    local fin="${pdb##*/}"
+    local ext="${fin##*.}"
+    local nam="${fin%.*}"
+    if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" ] ; then
+        warncont "Input file must be a PDB file."
+        return $ERROR
+    fi
+
+    cd $dir
+    
+    # Separate protein and ligands
+    if [ ! -e Protein.pdb ] ; then
+        egrep '(^ATOM )|(^ TER)|(^ANISOU)' $fin >| Protein.pdb
+
+        # allow to override ligand
+        if [ ! -e Ligands.pdb ] ; then
+	        grep '^HETATM' $fin.pdb >| Ligands.pdb
+        fi 
+    else
+        notecont "Using Protein.pdb and Ligands.pdb from previous run."
+    fi
+
+    cd -
+}
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	extract_ligands - extract ligands from a PDB file
+# #
+# # SYNOPSIS
+# #	extract_ligands input.pdb {LIGANDS]
+# #
+# # DESCRIPTION
+# #	Extract the ligands from a complex specified by input.pdb
+# #
+# #	On exit, the file input.pdb will have been depleted from all
+# #	ligands, and the ligands will each have been saved in a separate
+# #	file named after the ligand's PDB entry name.
+# #
+# #	Currently, it also generates the topology parameter files for
+# #	each ligand using ACPYPE.
+# #
+# #	An optional parameter "LIGANDS" can be used to specify a text file
+# #	containing a list of the ligands to extract. This file is assumed
+# #	to have the format "ligand charge", where ligand is the PDB code 
+# #	of the ligand, and charge a number with the charge that is to be
+# #	assigned to it. If the charge is missing, it will be assumed to be
+# #	zero (0).
+# #
+# #	If the optional LIGANDS file is provided, then only the ligands
+# #	specified in this file will be saved, and any others will be
+# #	deleted.
+# #
+# #	In any case, whether the LIGANDS file is provided or not, a
+# #	LIGANDS.OK file will be generated at the end listing all the
+# #	ligands extracted and their charges.
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function extract_ligands {
+#     if [ $# -lt 1 ] ; then echo "Err: ${FUNCNAME[0]} pdbfile [ligandfile]" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     # go over each ligand, one by one, and extract it from the original file
+#     # after we finish, the original file contains everything it originally
+#     # contained EXCEPT for the ligands extracted
+#     # if a ligands file is provide, only ligands listed in it are
+#     # extracted, and the charge specified in the file is used
+# 
+#     local pdb=$1		# usually ./Ligands.pdb or ./OrigComplex.pdb or some such
+#     local ligands=${2:-'LIGANDS'}	# usually ./LIGANDS
+# 
+#     # a list of ligands to ignore 
+#     #
+#     #	These ligands will not be removed, will not be entered
+#     # into the $ligands.ok file, will not be parametrized and will
+#     # be left as part of the stripped-down $pdb file) as HETATM
+#     #
+#     #	We assume the force-field used will already have parameters
+#     # defined for these.
+#     #
+#     local known_ligands='(MG)|(NA)|(CL)|(CA)|(HOH)|(SO4)|(IOD)|(GOL)|(PO4)'
+#     #local known_ligands='DO_NOT_IGNORE_ANYTHING'
+#     
+#     # provide defaults for external variables
+#     local babel=${babel:-`which babel`}
+# 
+#     if [ ! -e $pdb ] ; then
+#         echo "extract_ligands: $1 not found" ; return $ERROR
+#     fi
+#     local dir=`dirname $pdb`
+#     local fin="${pdb##*/}"
+#     local ext="${fin##*.}"
+#     local nam="${fin%.*}"
+#     if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" ] ; then
+#         echo "extract_ligands ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+# 
+# 
+#     echo ""
+#     echo ">>> extract_ligands: extracting ligands from $pdb"
+#     echo ""
+# 
+#     rm -f LIGANDS.OK	# we'll rebuild it on the go
+# 
+#     if [ ! -e "$ligands" ] ; then
+#         # try to figure out ligand list
+#         # avoiding common ions and "boring" ligands
+#         grep '^HETATM' $pdb | cut -c18-21 | uniq | \
+# 	egrep -v $known_ligands
+#     else
+#         # get list of ligands from file provided
+#         # only ligands listed in the file will be used
+#         #cut -f1 $ligands
+#         cat $ligands
+#     fi | \
+#     while read lig charge ; do
+#         # find out charge for the ligand
+#         if [ "$charge" == '' ] ; then 
+#             charge="0"
+#         fi
+# 	
+#         echo ""
+#         banner "$lig $charge"
+#         echo ""
+# 
+# 	if [ ! -s $lig.pdb ] ; then
+#             # extract ligand with the H already added
+#             # and remove it from the protein
+#             echo -n "extract_ligands: extracting [$lig] "
+# 	    if [ $addHmethod == 'babel' ] ; then
+#                 echo "using babel"
+#         	#
+#         	#	CONECT records in the input file refer to all
+#         	#	molecules, and therefore, we would need to 
+#         	#	distinguish which ones belong to this ligand
+#         	#	to extract only those. It is easier to do it
+#         	#	this way: we extract only the (het)atoms, and then
+#         	#	use babel to rebuild the connectivity.
+#         	#
+#         	grep -h "^HETATM.\{10\} $lig" $pdb | \
+#     	            $babel -ipdb - -opdb - | \
+#                     egrep '(^ATOM)|(^HETATM)|(^CONECT)' > $lig.pdb
+# 
+#     		# remove ligand from protein
+#     		grep -v "^HETATM.\{10\} $lig" $pdb > tmpProt.pdb
+#         	mv tmpProt.pdb $pdb
+# 	    else
+#                 echo "using chimera"
+#       		# for all the other cases, use Chimera    
+#     		# Using Chimera helps keep/remove the CONECT records
+# 		$chimera --nogui <<END
+#                     open Protein.pdb
+#                     select #0:$lig
+#                     write selected format pdb 0 het$lig.pdb
+#                     delete #0:$lig
+#                     write format pdb 0 Protein.pdb
+#                     stop now
+# END
+# 		egrep '(^ATOM)|(^HETATM)|(^CONECT)' het$lig.pdb > $lig.pdb
+# 		#rm -f het$lig.pdb
+# 	    fi
+# 	fi
+# 	# check if the ligand file is empty (the ligand was not present)
+#         # and make the topology
+# 	if [ -s $lig.pdb ] ; then
+#             make_ligand_topologies $lig.pdb $charge
+#             
+#             echo ""
+#             echo "extract_ligands: $lig	$charge ($ligands)"
+#             echo "$lig	$charge" >> $ligands.OK
+#             echo "extract_ligands: $lig	$charge ($ligands.OK)"
+# 	else
+#             echo ""
+#             echo "extract_ligands ERROR: could not extract $lig"
+#             echo ""
+#             # we'll not stop, but allow the extraction to continue
+#             # with other ligands.
+#         fi
+#     done
+#     # Ensure any remaining, non-wanted ligand is removed
+#     #	THIS IS NOT TO BE USED IF WE ALLOW KNOWN LIGANDS TO STAY
+#     #	AS WE DO NOW.
+#     #
+#     #echo "Removing any other ligands"
+#     #egrep '(^ATOM)|(^TER)|(^ANISOU)' $pdb > tmpProt.pdb
+#     #mv tmpProt.pdb $pdb
+# 
+#     return $OK
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/extract_ligands.bash
+fi
+
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	pdb2mol2 - convert a PDB file to Mol2 format assigning charges
+# #
+# # DESCRIPTION
+# #	Convert a PDB filt to mol2 format trying as many charge-computation
+# #	methods as possible.
+# #
+# #	Results will be saved as both, MOL2 and PDB files to ensure that
+# #	atom positions and names are kept in synchrony. The output files
+# #	will ne named according to the input file name followed by
+# #		.$method.pdb and $method.mol2
+# #
+# #	Currently supported methods (outside CNB/CSIC) include
+# #	    ab initio
+# #		none yet
+# #	    semiempirical
+# #		openmopac
+# #		chimera AM1/BCC
+# #	    empirical
+# #		babel (with --partialcharges, use babel -L charges for a list)
+# #
+# # AUTHOR
+# #	(C) Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es 2014
+# #
+# function pdb2mol2 {
+#     if [ $# -lt 1 ] ; then echo "Err: ${FUNCNAME[0]} pdbfile [chargemethod]" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local mol=$1
+#     local charge=$2
+# 
+#     local openmopac=${openmopac:-`which MOPAC2009.exe`}
+#     local babel=${babel:-`which babel`}
+#     local babel="/home/scientific/contrib/openbabel/bin/babel"
+#     local chimera=${chimera:-`which chimera`}
+#     local ergoSCF=${ergoSCF:-`which ErgoSCF.bash`}
+#     local freeON=${freeON:-`which freeon.bash`}
+#     local gamessUS=${gamessUS:-`which gamess.sh`}
+#     local NWchem=${NWchem:-`which nwchem.bash`}
+#     local abinit=${abinit:-`which abinit.bash`}
+#     
+#     local dir=`dirname $mol`
+#     local fin="${mol##*/}"
+#     local ext="${fin##*.}"
+#     local lig="${fin%.*}"
+#     
+#     if [ ! "$ext" = "pdb" ] ; then
+#         echo "pdb2mol2 ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+#     if [ ! -e $mol ] ; then
+#     	echo "pdb2mol2 ERROR: $mol does not exist"
+# 	return $ERROR
+#     fi
+#     
+#     # Try to make a .mol2 file with charges from a PDB file
+#     if [ -e $lig.mol2 ] ; then 
+#         echo "Using existing $lig.mol2"
+#         return $OK
+#     fi
+# 
+#     pushd `pwd`
+#     cd $dir
+#     # save all computed mol2 files in a subdirectory
+#     mkdir -p $lig.mmooll22
+#     cp $lig.pdb $lig.mmooll22
+#     cp $lig.pdb $lig.pdb.orig
+#     cd $lig.mmooll22
+# 
+#     # OpenMopac (this loses TRIPOS atomtypes and may pose a problem later).
+#     #
+#     # 	compute multiplicity
+#     # HEURISTIC: assume all charges are due to e- that yield unpaired spin
+#     #	ignore minus sign (i.e. take absolute value)
+#     local mult=$(( ${charge#-} + 1 ))
+#     #
+#     
+#     echo ""
+#     if [ ! -s "$lig.mopac.mol2" -a -x "$openmopac" -a -x "$babel" ] ; then
+#         echo "pdb2mol2 trying to make a mol2 file with $openmopac"
+#         $babel -ipdb $lig.pdb -omopcrt $lig.mopcrt
+#     	sed -e "s/PUT KEYWORDS HERE/1SCF CHARGE=$charge MULLIK/g" $lig.mopcrt > $lig.mop
+#         #$openmopac $lig.mop
+#         # HACK HACK HACK
+#         #	we need to use openmopac2009 or earlier since the latest
+#         #	openmopac2012 has changed the output format and makes babel
+#         #	crash. Next is a hack to continue using an expired 2009 or
+#         #	earlier version until a fix is available.
+#         $openmopac $lig.mop <<END
+# 
+# 
+# END
+#         # babel sets the molecule name to $lig.out, fix it
+#         $babel -imopout $lig.out -omol2 - | \
+#             sed -e "s/$lig.out/$lig/" > $lig.mopac.mol2
+#         # some topology builders choke on unterminated babel mol2
+#         echo "@<TRIPOS>" >> $lig.mopac.mol2
+#         # openmopac may have changed atom order
+# 	$babel -imopout $lig.out -opdb - | \
+#             sed -e "s/^COMPND    $lig.out/COMPND    $lig/g" \
+#                 -e "s/ LIG / $lig /g" >$lig.mopac.pdb
+#     fi
+#     
+#     # Try to make mol2 using Chimera and Antechamber:
+#     # add AM1-BCC charges with GAFF atom types and save as .mol2
+#     #
+#     if [ ! -s $lig.am1-bcc.mol2 -a -x "$chimera" ] ; then
+#         # try to assign charges using Chimera and antechamber
+#         echo "pdb2mol2: Attempting to asssign charges using Chimera with AM1/BCC"
+#         $chimera --nogui <<END
+#             open $lig.pdb
+#             #addh inisolation true hbond true
+#             addcharge all chargeModel 99sb method am1
+#             write format mol2 0 $lig.am1-bcc.mol2
+#             write format pdb  0 $lig.am1-bcc.pdb
+#             stop now
+# END
+# 	# Chimera saves the molecule named as "$lig.pdb" in the mol2 file
+#         sed -e "s/$lig.pdb/$lig/g" $lig.am1-bcc.mol2 > $lig.tmp
+#         mv $lig.tmp $lig.am1-bcc.mol2
+# 	# NOTE: review the output to check that all went as expected.
+#         #	If there is something wrong, CORRECT THE ORIGINAL PDB FILE.
+#     fi
+# 
+#     if [ -x "$babel" ] ; then
+#     	# We cannot get list of supported models and try them one by one
+#         # because they are not listed in order of accuracy.
+#         # Instead we'll hardcode the values in an arbitrary order and
+#         # try each whether it is supported or not.
+#         for i in qtpie qeq eem mmff94 gasteiger ; do
+#             echo "pdb2mol2: assigning charges using babel $i"
+#             $babel -ipdb $lig.pdb --partialcharge $i -omol2 $lig.$i.mol2
+#             echo "@<TRIPOS>" >> $lig.$i.mol2
+#             if [ -s $lig.$i.mol2 ] ; then
+#                 $babel -imol2 $lig.$i.mol2 -opdb $lig.$i.pdb
+#                 # babel sets the molecule name to $lig.pdb
+#                 sed -e "s/$lig.pdb/$lig/" $lig.$i.pdb > $lig.tmp
+#                 mv $lig.tmp $lig.$i.mol2
+# 	    else
+#                 rm -f $lig.$i.mol2
+#             fi
+#         done
+#     fi
+#     
+#     if [ -x "$ergoSCF" ] ; then
+#         # our main problem here is to find out if all required atom
+#         # types are supported by the chosen basis set
+#         echo "pdb2mol2: SORRY $ergoSCF support is only available at CNB/CSIC"
+#     fi
+#     if [ -x "$freeON" ] ; then
+#         # our main problem here is to find out if all required atom
+#         # types are supported by the chosen basis set
+#         echo "pdb2mol2: SORRY $freeON support is only available at CNB/CSIC"
+#     fi
+#     if [ -x "$fgamessUS" ] ; then
+#         # our main problem here is to find out if all required atom
+#         # types are supported by the chosen basis set
+#         echo "pdb2mol2: SORRY $gamessUS support is only available at CNB/CSIC"
+#     fi
+#     if [ -x "$NWchem" ] ; then
+#         # our main problem here is to find out if all required atom
+#         # types are supported by the chosen basis set
+#         echo "pdb2mol2: SORRY $NWchem support is only available at CNB/CSIC"
+#     fi
+#     
+#     # Now try to select the possibly best mol2 file and
+#     # copy it -and the matching PDB file- to the target directory
+#     #
+#     # we'll select them in the following hardcoded precedence
+#     #
+#     #	NOTE that ab initio do not normally take into account Dirac 
+#     #	relativistic effects, and so may be inaccurate for heavy metals
+#     echo ""
+#     if [ -s $lig.aug-cc-pCV5Z.mol2 ] ; then
+#         cp $lig.aug-cc-pCV5Z.mol2 ../$lig.mol2
+#         cp $lig.aug-cc-pCV5Z.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.aug-cc-pCV5Z.mol2"
+#         
+#     elif [ -s $6-311++Gss.mol2 ] ; then
+#         cp $lig.6-311++Gss.mol2 ../$lig.mol2
+#         cp $lig.6-311++Gss.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.6-311++Gss.mol2"
+#     
+#     # below this level, accuracy of DFT and SME QM often go hand in hand
+#     # semiempirical parametrization implicitly includes relativistic effects
+#     # but it does not support all elements in the periodic table
+#     elif [ -s $lig.mopac.mol2 ] ; then
+# 	cp $lig.mopac.mol2 ../$lig.mol2
+#         cp $lig.mopac.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.mopac.mol2"
+#     
+#     elif [ -s $lig.am1-bcc.mol2 ] ; then
+#         cp $lig.am1-bcc.mol2 ../$lig.mol2
+#         cp $lig.am1-bcc.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.am1-bcc.mol2"
+#     
+#     # next come empirical methods implemented in babel
+#     elif [ -s $lig.qtpie.mol2 ] ; then
+#         cp $lig.qtpie.mol2 ../$lig.mol2
+#         cp $lig.qtpie.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.qtpie.mol2"
+#     
+#     elif [ -s $lig.qeq.mol2 ] ; then
+#         cp $lig.qeq.mol2 ../$lig.mol2
+#         cp $lig.qeq.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.qeq.mol2"
+#     
+#     elif [ -s $lig.eem.mol2 ] ; then
+#         cp $lig.eem.mol2 ../$lig.mol2
+#         cp $lig.eem.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.eem.mol2"
+#     
+#     elif [ -s $lig.mmff94.mol2 ] ; then
+#         cp $lig.mmff94.mol2 ../$lig.mol2
+#         cp $lig.mmff94.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.mmff94.mol2"
+#     
+#     elif [ -s $lig.gasteiger.mol2 ] ; then
+#         cp $lig.gasteiger.mol2 ../$lig.mol2
+#         cp $lig.gasteiger.pdb  ../$lig.pdb
+#         echo "pdb2mol2: setting $lig.mol2 to $lig.gasteiger.mol2"
+#     
+#     else
+#         echo "pdb2mol2 ERROR: Couldn't make a mol2 file for $lig"
+#         echo "pdb2mol2 ERROR: this should be exceedingly rare"
+#         return 1
+#     fi
+#     echo ""
+#     
+#     cd ..
+# 
+#     popd
+#     echo ""
+#     return 0
+# }
+    echo ''
+else
+    source $FUNCS_BASE/pdb2mol2.bash
+fi
+
+
+if [ "$inline" = "yes" ] ; then
+# #
+# # NAME
+# #	make_topolbuild_topology
+# #
+# # SYNOPSIS
+# #	make_topolbuild_topology ligand.pdb charge
+# #
+# # DESCRIPTION
+# #	Create an OPLS-AA topology for a ligand PDB file using topolbuild.
+# #	Results will be saved in directory $ligand.topolbuild
+# #
+# #	Planned for the future:
+# #
+# #	topolbuild can also generate gromacs gmx43a1 gmx43a2 gmx43b1
+# #	gmx45a3 gmx45a5 gmx53a5 and gmx53a6 topologies.
+# #
+# #	In addition it can also generate Tripos topologies, and Amber
+# #	gaff glycam04 glycam 04EP glycam_06c amber91 amber91X amber94
+# #	amber96 amber98 amber99 amber99EP amberAM1 and amberPM3 topologies 
+# #	which we could try to convert to gromacs format.
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function make_topolbuild_topology {
+#     if [ $# -lt 1 ] ; then echo "Err: ${FUNCNAME[0]} ligand.mol2 [ff]" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local mol=$1
+#     local ff=${2:-'oplsaa'}	# supports oplsaa and various gmx*
+#     
+#     local dir=`dirname $mol`
+#     local fin="${mol##*/}"
+#     local ext="${fin##*.}"
+#     local lig="${fin%.*}"
+#     
+#     # defaults for global variables
+#     local topolbuild=${topolbuild:-"$HOME/contrib/topolbuild1_3/bin/topolbuild"}
+#     local topolbuilddat=${topolbuilddat:-"$HOME/contrib/topolbuild1_3/dat"}
+# 
+#     if [[ "$ff" == "GROMOS"* ]] ; then $ff=`echo $ff | sed -e 's/GROMOS/gmx/g'` ; fi
+#     if [[ "$ff" != "opls"* && "$ff" != "gmx"* ]] ; then
+#         echo "make_topolbuild_topology: Topology must be one of oplsaa or gmx*"
+# 	return
+#     fi
+# 
+#     if [ ! "$ext" = "mol2" ] ; then
+#         echo "make_topolbuild_topology ERROR: Input file must be a MOL2 file."
+#         return $ERROR
+#     fi
+#     if [ ! -e $mol ] ; then
+#     	echo "make_topolbuild_topology ERROR: $mol does not exist"
+# 	return $ERROR
+#     fi
+# 
+#     if [ -s $lig.mol2 -a ! -e $lig.topolbuild/$lig.itp ] ; then
+#         echo "make_topolbuild_topology: making OPLS-AA topology with $topolbuild"
+#         mkdir -p $lig.topolbuild
+#         cp $lig.mol2 $lig.topolbuild
+#         cd $lig.topolbuild
+# 	# topolbuild needs a SUBSTRUCTURE record
+# 	if ! grep -q '@<TRIPOS>SUBSTRUCTURE' $lig.mol2 ; then
+# 	    # add one
+# 	    echo "@<TRIPOS>SUBSTRUCTURE" >> $lig.mol2
+# 	    # format is
+# 	    # substr_id name root_atom type dict-type chain chain-type interstructure-bonds status [comment]
+# 	    echo "    1  $lig     1 RESIDUE           4 A      NAR     0 ROOT" \
+# 	        >> $lig.mol2
+# 	    # or we could use a minimal representation
+#             # echo "   1  $lig  1"
+# 	fi
+# 	
+# 	$topolbuild -n $lig -ff $ff -dir $topolbuilddat/gromacs
+#         # generates
+#         #	$lig.log
+#         #	$lig.gro
+#         #	$ligMOL.mol2
+#         #	$lig.top
+#         #	posre$lif.itp
+#         #	ff$lig.itp
+#         sed -e "/; Include water topology/,//d" $lig.top > $lig.itp
+#         cp ff$lig.itp ff$lig.itp.orig
+#         sed -e "s%ffoplsaanb%oplsaa.ff/ffnonbonded%" \
+#             '/[ defaults ]/,/^ $/d' \
+# 	    ff$lig.itp.orig \
+# 	    > ff$lig.itp
+#         # update $lig.pdb file
+#         #	we need to because atom numbering and order have changed in .gro .top
+#         $editconf -f $lig.gro -o $lig.pdb
+#         cd -
+#     else
+#         echo ""
+#         echo "make_topolbuild_topology: using existing topology for $lig"
+#         echo ""
+#     fi
+#     return $OK
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/make_topolbuild_topology.bash
+fi
+
+if [ "$inline" = "yes" ] ; then
+# #
+# # NAME
+# #	make_topolgen_topology
+# #
+# # SYNOPSIS
+# #	make_topolgen_topology ligand.pdb charge
+# #
+# # DESCRIPTION
+# #	Create a topology for a ligand PDB file using topolgen.
+# #	Results will be saved in directory $ligand.topolgen
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function make_topolgen_topology {
+#     if [ $# -lt 1 ] ; then echo "Err: ${FUNCNAME[0]} ligand.pdb" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local mol=$1
+#     
+#     local dir=`dirname $mol`
+#     local fin="${mol##*/}"
+#     local ext="${fin##*.}"
+#     local lig="${fin%.*}"
+#     
+#     local babel=${babel:-`which babel`}
+#     local topolgen=${topolgen:-`which topolgen`}
+# 
+#     if [ ! "$ext" = "pdb" ] ; then
+#         echo "make_topolgen_topology ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+#     if [ ! -e $mol ] ; then
+#     	echo "make_topolgen_topology ERROR: $mol does not exist"
+# 	return $ERROR
+#     fi
+# 
+#     if [ -x "$topolgen" -a ! -e $lig.topolgen/$lig.oplsaa.itp ] ; then
+#         echo "make_topolgen_topology: making OPLS-AA topology with $topolgen"
+#         echo "make_topolgen_topology: expect 'Uknonw atom type' messages for non-existing atom numbers"
+#         
+# 	# use topolgen-1.3
+#         #	This should work almost always, it generates sensible
+#         #	parameters, but charges are empirically adjusted, not
+#         #	considering any possibly existing mol2 file.
+#         #	NOTE that topolgen needs a PDB file where all atoms are
+#         #	present, including H, defined as HETATM and full
+#         #	connectivity is given in CONECT records. Chimera
+#         #	will usually produce one such file. Babel will make
+#         #	one where ATOM is used instead of HETATM
+#         mkdir -p $lig.topolgen/
+#         cp $lig.pdb $lig.topolgen/
+#         cd $lig.topolgen/
+#         $topolgen -f $lig.pdb -o $lig.top -type top -renumber
+#         
+# 	mv $lig.itp $lig.oplsaa.itp
+#         #
+#         if [ $? -eq 0 ] ; then
+#             if [ -e ../$lig.mol2 ] ; then
+#                 # if a .mol2 file is available, prefer the charges in it:
+#                 #	substitute charges in $lig.itp by those in mol2
+#                 #	sed -n '/ATOM/,/BOND/p will extratc lines between 
+#                 #		ATOM and BOND, these included
+#                 #	print lines between ATOM and BOND deleting these two
+#                 # this is terribly inefficient but works for now
+#                 cp ../$lig.mol2 .
+#                 cp $lig.oplsaa.itp $lig.oplsaa.itp.orig
+#                 sed -n '/ATOM/,/BOND/{/ATOM/d;/BOND/d;p}' $lig.mol2 |
+#                 while read no atom x y z typ n res charge ; do 
+#                     #echo "no=$no atom=$atom x=$x y=$y z=$z typ=$typ n=$n res=$res charge=$charge"
+# 	            #sed "/ \+$res \+$atom/"'!d' $lig.itp | \
+#                     cat $lig.oplsaa.itp | \
+#                       sed -e "/ \+$res \+$atom/ s/^\(.\{50\}\).......\(.*\)$/\1$charge\2/g" \
+#                       > $lig.tmp
+#                     mv $lig.tmp $lig.oplsaa.itp
+#                 done
+#             fi
+#             # Use ONLY if TopolGen does not set the molecule name in the 
+#             # [ moleculetype ] section:
+# 	    # look for " moleculetype " section line, skip it, skip following
+#             # comment line and insert name at the beginning of the first line
+#             # in the section
+#             ##sed -e "/ moleculetype /{n;n;s/^/$lig/}" $lig.oplsaa.itp \
+#             ##    > $lig.tmp
+#             ##mv $lig.tmp $lig.oplsaa.itp
+# 	else
+#             echo "make_topolgen_topology ERROR: could not generate OPLS/AA topology with $topolgen"
+# 	    return $ERROR
+#         fi
+#         cd -
+#     fi
+# 
+#     return $OK
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/make_topolgen_topology.bash
+fi
+
+
+#
+# NAME
+#	sync_mktop_atom_names
+#
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function sync_mktop_atom_names {
+    if [ $# -ne 2 ] ; then errexit "ligand forcefield" 
+    else notecont $* ; fi
+
+    # synchronize PDB atom names to match the generated OPLS-AA atom names
+    #
+    #	NOTE: WE ASSUME ATOMS ARE LISTED IN THE SAME ORDER IN BOTH FILES!!!
+    #		WE TRUST ORDER AND DO ONLY MINIMAL CHECK FOR ATOM TYPE MATCH
+    #
+    #	DOING THIS FOR AMBER WOULD BE EXACTLY THE SAME (BUT FOR THE TOPOLOGY
+    #	FILE)
+    #
+    lig=$1
+    ff=$2
+    pdb=$lig.pdb
+    topol=$lig.$ff.top
+
+    while read -r line ; do 
+        # if this is an atom line
+        if egrep -q '(^HETATM)|(^ATOM  )' <(echo $line) ; then
+            >&2 warncont "$line" 
+            # get atom number
+            atno=`echo "$line" | cut -c7-11`
+            atty=`echo "$line" | cut -c77-78`
+            >&2 warncont "atno='$atno'"
+            # look it up in the topology and extract its name
+            atnam=`grep ".* $atno .* $lig     $atty" $topol | \
+                sed -e "s/.* $atno .* $lig     \(....\).*$/\1/"`
+            >&2 warncont "atnam='$atnam'"
+            # if new name found substitute old by new name
+            if [ "$atnam" != "" ] ; then
+                echo "$line" | \
+                    sed -e "s/\(^......$atno \)....\(.*$\)/\1$atnam\2/"
+            else
+    	        # no match
+                echo "$line"
+                >&2 warncont "No match for $atno $atty in "
+                >&2 warncont "$line"
+            fi
+        else
+	    # non atom lines are printed 'as is'
+            #	this allows us to preserve CONECT records
+            echo "$line"
+        fi
+    done < $pdb
+}
+
+if [ "$inline" == "yes" ] ; then
+# #
+# # NAME
+# #	make_mktop_topology
+# #
+# # SYNOPSIS
+# #	make_mktop_topology ligand.pdb charge
+# #
+# # DESCRIPTION
+# #	Create a topology for a ligand PDB file using mktop.
+# #	If a mol2 file exists, it will be used to read the charges.
+# #	Results will be saved in directory $ligand.mktop
+# #	A new PDB file with atom names matching those of the
+# #	topology will be saved in $ligand.mktop/$ligand_NEW.pdb
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function make_mktop_topology {
+#     if [ $# -ne 1 ] ; then echo "Err: ${FUNCNAME[0]} ligand.pdb" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+#     local mol=$1
+#     
+#     local dir=`dirname $mol`
+#     local fin="${mol##*/}"
+#     local ext="${fin##*.}"
+#     local lig="${fin%.*}"
+#     
+#     local babel=${babel:-`which babel`}
+#     local mktop=${mktop:-`which mktop_2.2.1.pl`}
+# 
+#     if [ ! "$ext" = "pdb" ] ; then
+#         echo "make_mktop_topology ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+#     if [ ! -e $mol ] ; then
+#     	echo "make_mktop_topology ERROR: $mol does not exist"
+# 	return $ERROR
+#     fi
+#     
+#     if [ ! -e $lig.mktop/$lig.opls.itp -a -x "$mktop" ] ; then
+#         echo ""
+#         echo "make_mktop_topology: making AMBER and OPLS topologies for $lig using mktop"
+#         echo ""
+#         mkdir -p $lig.mktop
+#         cp $lig.pdb $lig.mktop
+#         if [ ! -s $lig.mol2 ] ; then
+#             echo ""
+#             echo "make_mktop_topology WARNING: no $lig.mol2 file exists"
+#             echo "	a charge of 0 will be used for all atoms!"
+#             echo ""
+#             touch $lig.mktop/$lig.mol2
+#         else
+#             cp $lig.mol2 $lig.mktop
+#         fi
+#         cd $lig.mktop
+#         # create charges file from mol2
+#         #	ectract ATOM section and output the corresponding fields
+#         #	NOTE:
+#         #	ATOMS IN THE MOL2 FILE MUST CORRESPOND NUMERICALLY WITH
+#         #	THE ATOMS IN THE PDB FILE!
+#         sed -n '/@<TRIPOS>ATOM/,/@<TRIPOS>/{/@<TRIPOS>ATOM/d; /@<TRIPOS>/d;p}' \
+#         	$lig.mol2 | \
+#                 while read num atom x y z atyp resno res chg ; do 
+#                     echo "$num $chg" 
+#                 done > $lig.charges
+# 	$mktop -i $lig.pdb -c $lig.charges -ff amber -o $lig.amber.top -conect yes
+#         if [ $? -eq 1 ] ; then
+#             # something went wrong. Just in case, sometimes there may
+#             # be missing CONECT records for one or more atoms (go figure)
+#             $mktop -i $lig.pdb -c $lig.charges -ff amber -o $lig.amber.top -conect no
+# 	fi
+#         if [ -e $lig.amber.top ] ; then
+#             # remove system definition, comment forcefield includes
+#             #	and give molecule its actual name
+#             sed -e '/\[ system \]/,//d' -e 's/^#/;#/g' \
+#                 -e "s/^MOL/$lig/g" $lig.amber.top > $lig.amber.itp
+#         fi
+# 	$mktop -i $lig.pdb -c $lig.charges -ff opls -o $lig.opls.top -conect yes
+#         if [ $? -eq 1 ] ; then
+#             # something went wrong. Just in case, sometimes there may
+#             # be missing CONECT records for one or more atoms (go figure)
+#             $mktop -i $lig.pdb -c $lig.charges -ff opls -o $lig.opls.top -conect no
+# 	fi
+#         if [ -e $lig.opls.top ] ; then
+#             # remove system definition, comment forcefield includes
+#             #	and give molecule its actual name
+#             sed -e '/\[ system \]/,//d' -e 's/^#/;#/g' \
+#                 -e "s/^MOL/$lig/g" $lig.opls.top > $lig.opls.itp
+#         fi
+#         #
+#         # MKTOP generates new atom names for the topology
+#         #	these will not likely match those in the PDB file
+#         #	and we need to synchronize them for the coordinates
+#         #	and topology to match
+#         #
+#         sync_mktop_atom_names $lig opls > ${lig}_NEW.pdb
+#         cd -
+#     fi
+# 
+#     return $OK
+# }
+    echo -n ''
+else
+    source  $FUNCS_BASE/make_mktop_topology.bash
+fi
+
+
+if [ "$inline" == "yes" ] ; then
+# #
+# # NAME
+# #	make_acpype_topology
+# #
+# # SYNOPSIS
+# #	make_acpype_topology ligand.pdb charge
+# #
+# # DESCRIPTION
+# #	Create a topology for a ligand PDB file using acpype.
+# #	If a mol2 file exists, it will be used to read the charges.
+# #	Results will be saved in directory $ligand.acpype
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function make_acpype_topology {
+#     if [ $# -ne 2 ] ; then echo "Err: ${FUNCNAME[0]} ligand.pdb charge" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local mol=$1
+#     local charge=$2
+#     
+#     local dir=`dirname $mol`
+#     local fin="${mol##*/}"
+#     local ext="${fin##*.}"
+#     local lig="${fin%.*}"
+#     
+#     local acpype=${acpype:-`which acpype`}
+#     local babel=${babel:-`which babel`}
+# 
+#     if [ ! "$ext" = "pdb" ] ; then
+#         echo "make_acpype_topology ERROR: Input file must be a PDB file."
+#         return $ERROR
+#     fi
+#     if [ ! -e $mol ] ; then
+#     	echo "make_acpype_topology ERROR: $mol does not exist"
+# 	return $ERROR
+#     fi
+#     
+#     # do not repeat if already done
+#     if [ -s $lig.acpype/${lig}_NEW.pdb ] ; then
+#     	echo "make_acpype_topology: Using existing topology in $lig.acpype"
+#         return $OK
+#     fi
+# 
+#     # 	compute multiplicity
+#     # HEURISTIC: assume all charges are due to e- that yield unpaired spin
+#     #	ignore minus sign (i.e. take absolute value)
+#     local mult=$(( ${charge#-} + 1 ))
+#     echo "make_acpype_topology: $lig $charge $mult"
+# 
+#     # 	If a MOL2 file is available, assume it has charges and use them
+#     if [ -s $lig.mol2 ] ; then
+#         echo "make_acpype_topology: Generating parameters using $lig.mol2"
+#         $acpype -i $lig.mol2 -n $charge -m $mult -b $lig -r -l -a amber -c user
+#     fi
+#     
+#     # if  there was not MOL2, compute charges using SQM from Antechamber
+#     if [ $? -ne 0 ] ; then
+#         #
+#         # the user didn't supply a mol2 file or we couldn't use the one available.
+#         # compute charges using SQM from Antechamber
+#         echo "make_acpype_topology: could not use charges from mol2 file, trying SQM"
+#         $acpype -i $lig.pdb -n $charge -m $mult -b $lig -r -l -a amber
+#     else
+#         # we are done
+#         return $OK
+#     fi
+#     
+#     # if SQM failed, then resort to using babel to compute charges
+#     # iterating over known babel methods
+#     if [ $? -ne 0 ] && [ -x "$babel" ] ; then
+#         echo "make_acpype_topology: COULD NOT USE SQM CHARGES."
+#         # try successively with each of babel -L charges methods
+# 	for i in qtpie qeq eem mmff94 gasteiger ; do
+#             echo "make_acpype_topology: assigning charges using babel $i"
+#             $babel -ipdb $lig.pdb --partialcharge $i -omol2 $lig.$i.mol2
+#             acpype -i $lig.$i.mol2 -n $charge -m $mult -b $lig -r -l -a amber -c user
+#             if [ $? -eq 0 ] ; then
+#                 break
+#             fi
+#         done
+#     else
+#         return $OK
+#     fi
+#     
+#     # if Babel charges failed, then try to use Antechamber Gasteiger charges
+#     if [ $? -ne 0 ] ; then
+#         echo "make_acpype_topology: COULD NOT USE BABEL. USING GASTEIGER CHARGES"
+#         $acpype -i $lig.pdb -n $charge -m $mult -b $lig -r -l -a amber -c gas
+#     else
+#         return $OK
+#     fi
+#     
+#     # if everything failed, tell the user
+#     if [ $? -ne 0 ] ; then
+# 	echo "make_acpype_topology ERROR: COULD NOT GENERATE ACPYPE TOPOLOGIES FOR $lig $charge $mult"
+#         return $ERROR
+#     fi
+#     # ligand topologies are in $lig.acpype/$lig_GMX*.itp and $lig.oplsaa.itp
+# 
+#     return $OK
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/make_acpype_topology.bash
+fi
+
+#
+# NAME
+#	make_ligand_topologies
+#
+# SYNOPSIS
+#	make_ligand_topologies ligand.pdb charge
+#
+# DESCRIPTION
+#	Create a topology for a ligand PDB file using various methods.
+#
+#	By default we assume a charge of 0 if not specified.
+#
+#	Ligand topologies will be built using topolgen (for OPLS/AA),
+#	topolbuild (OPLS-AA), mktop (AMBER and OPLS-AA) and 
+#	acpype (for all other force fields, plus a temptative OPLS/AA topology).
+#
+#	If a ligand.mol2 file already exists, in addition to the PDB file,
+#	it will be assumed to contain the atomic point charges, and use
+#	to build the topology.
+#
+#	If a ligand.mol2 file does not already exist, or building the
+#	topology with the provided one fails, then it will attempt to
+#	crate one using UCSF Chimera and AM1-BCC to compute charges.
+#
+#	If a ligand.mol2 file does not exist, and Chimera failed to build
+#	one, then we will first try to compute charges using Semi-empirical
+#	Quantum Mechanics implementation in Antechamber (sqm)
+#
+#	if that also fails, we will try other models using babel to
+#	generate a new mol2 file to use as template. The various methods
+#	available in babel will be tried in the following hardcoded order
+#
+#		QTPIE QEq EEM MMFF94 Gasteiger
+#
+#	If even that fails, we will resort to using less accurate Gasteiger
+#	charges using Antechamber.
+#
+#	If that also fails, then we give up.
+#
+#	Output files are:
+#		lig.oplsaa.itp	- OPLS/AA tology built by topolgen, with
+#			charges corrected by .mol2 if it exists.
+#		lig.acpype/*	- toplogies for a variety of force fields
+#			and systems built by acpype, with charges corrected
+#			according to the fallback protocol described above.
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function make_ligand_topologies() {
+    if [ $# -lt 1 ] ; then errexit "ligand.pdb [charge] [topol] [ff]" 
+    else notecont $* ; fi
+
+    # Take a ligand PDB file (or optionally an existing ligand.mol2 file)
+    # and generate a topology using ACPYPE assuming the specified charge
+    #
+    #	The user can request that only a specific topology be generated,
+    #   or all, or none at all.
+    #
+    #	By default, all topologies are generated. Currently, we support
+    #	mktop, topolbuild, topolgen and acpype
+    #
+    
+    local pdb=$1
+    local charge=${2:-"0"}
+    local topology=${3:-"all"}
+    local ff=${4:-'oplsaa'}	# force-field
+    
+    local chimera=${chimera:-`which chimera`}
+    local babel=${babel:-`which babel`}
+    local topolgen=${topolgen:-`which topolgen.pl`}
+    local topolbuild=${topolbuild:-`which topolbuild`-}
+    local openmopac=${openmopac:-'~/contrib/mopac/MOPAC2009'}
+    local mktop=${mktop:-`which mktop_2.2.1.pl`}
+
+    if [ "$topology" == "default" ] ; then topology='all' ; fi
+
+    echo ""
+    notecont "$lig ($charge) using $topology"
+    echo ""
+
+    # check arguments
+    if [ "$topology" = "none" ] ; then return $OK ; fi
+
+    local dir=`dirname $pdb`
+    local fin="${pdb##*/}"
+    local ext="${fin##*.}"
+    local lig="${fin%.*}"
+    if [ ! "$ext" = "pdb" -a ! "$ext" = "brk" -a ! "$ext" = 'mol2' ] ; then
+        warncont "Input file must be a PDB or mol2 file."
+        return $ERROR
+    fi
+    if [ ! -e $pdb ] ; then
+    	warnont "$pdb does not exist"
+	return $ERROR
+    fi
+    
+    pushd `pwd`		# remember our current directory so go can
+    cd $dir		# later return to it on end.
+    
+    # do not repeat calculation if already done
+    if [ -s $lig.itp ] ; then 
+        warncont "using $lig.itp from previous run"
+        return $OK
+    fi
+
+    # make sure we have a PDB file named $lig.pdb
+    if [ "$ext" = "brk" ] ; then
+        cp $lig.$ext $lig.pdb
+    elif [ "$ext" = "mol2" -a ! -e $lig.pdb ] ; then
+        $babel -imol2 $lig.mol2 -opdb $lig.pdb
+    fi
+
+    #
+    # First we will try to make a .mol2 file if none was provided
+    #
+    #	NOTE that $charge is only used by OpenMopac, and that it is
+    #	recomputed by Chimera, and hopefully by babel.
+    #
+    #	NOTE that this will try to generate a number of alternate
+    #	.mol2 files in $lig.mmooll22 with various methods and try 
+    #	to chose the most accurate one (but you still have the others
+    #	in case you prefer to use a different one).
+    #
+    if [ ! -s $lig.mol2 ] ; then
+        notecont "Generating $lig.mol2 file from $lig.pdb file (chg=$charge)"
+        pdb2mol2 $lig.pdb $charge
+        # this should generate $lig.mol2 and update $lig.pdb to match
+    else
+        notecont "Using existing $lig.mol2 file to assign topology charges"
+    fi
+    # if we still haven't one, let the user know
+    if [ ! -s $lig.mol2 ] ; then
+        notecont "no MOL2 file for guiding charges is available"
+    fi
+
+    #
+    # Second we'll make a number of alternative topologies for the user
+    #	to select his/her preferred one,
+    #
+
+    # Make a topology using topolbuild
+    #	We can only use topolbuild on a mol2 file (which already contains
+    #	charges)
+    if [ -s $lig.mol2 ] ; then
+        make_topolbuild_topology $lig.mol2
+    fi
+    
+    # Make ligand topology using topolgen
+    #	We can only use topolgen with a PDB file
+    #	But we shall correct charges with a mol2 file (if it exists)
+    if [ -s $lig.pdb ] ; then
+        make_topolgen_topology $lig.pdb
+    fi
+    
+    # Make a topology using ACPYPE
+    if [ -s $lig.pdb ] ; then
+        make_acpype_topology $lig.pdb $charge
+    fi
+    # ligand topologies are in $lig.acpype/$lig_GMX*.itp and $lig.oplsaa.itp
+
+    #
+    # Make topologies using mktop
+    #	mktop can create both amber and opls-aa topologies
+    #	if CONECT records are available in the PDB it can use them
+    #
+    if [ -s $lig.pdb ] ; then
+        make_mktop_topology $lig.pdb
+    fi
+    popd
+
+}
+
+#
+# NAME
+#	add_ligand_oplsaa_topolbuild
+#
+#
+# AUTHOR
+#	José R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function add_ligand_oplsaa_topolbuild {
+    if [ $# -ne 2 ] ; then errexit "complex lig" 
+    else notecont $* ; fi
+    
+    local complex=$1
+    local lig=$2
+    
+    if [ -e $lig.topolbuild/$lig.itp ] ; then
+        echo "add_ligand_oplsaa:  Using topolbuild topology"
+        # use updated PDB matching topology files
+        cp $lig.topolbuild/$lig.pdb ${lig}_ok.pdb
+        # install topology files
+        cp $lig.topolbuild/$lig.itp $lig.itp
+	cp $lig.topolbuild/ff$lig.itp .
+        cp $lig.topolbuild/posre$lig.itp .
+        
+        banner "WARNING!"
+        warncont ""
+        warncont "WARNING: Using topolbuild to create the topology for $lig"
+        warncont ""
+        warncont "TopolBuild may generate some incomplete or redudant data"
+        warncont "such as extra '[ defaults ]' sections and wrong dihedrals"
+        warncont ""
+        warncont "We have tried to apply some fixes, but if your calculation"
+        warncont "fails, you may need to comment out (put a ';' before) the"
+        warncont "offending lines and review carefully the $lig.itp file."
+        warncont ""
+        warncont "Look specially for offending atom or parameter definitions"
+        warncont "and check them against the corresponding force filed parameters"
+        warncont ""
+        warncont "You may find useful to consult other topologies generated"
+        warncont "by different programs (stored in specific subdirectories)"
+        warncont ""
+        warncont "If that fails, search the Net for existing parameters or"
+        warncont "ask in specialized mailing lists for help"
+        warncont ""
+        
+        # add updated coorfinates to complex
+        egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+            sed -e 's/HETATM/ATOM  /g' >> $complex.pdb
+
+        # add ligand topology to complex
+        cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+        " >| ${complex}Tmp.top
+
+        # add molecule count to complex
+        echo "$lig      1" >> ${complex}Tmp.top
+        mv ${complex}Tmp.top $complex.top
+        #echo "$lig added to $complex.top"
+
+	return $OK
+    else
+        return $ERROR
+    fi
+}
+
+
+#
+# NAME
+#	add_ligand_oplsaa_mktop
+#
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function add_ligand_oplsaa_mktop {
+    if [ $# -ne 2 ] ; then errexit "complex lig"
+    else notecont $* ; fi
+
+    local complex=$1
+    local lig=$2
+    
+    if [ -s $lig.mktop/$lig.opls.itp ] ; then
+        echo "add_ligand_oplsaa: using mktop topology"
+        cp $lig.mktop/${lig}_NEW.pdb ${lig}_ok.pdb
+        cp $lig.mktop/$lig.opls.itp $lig.itp
+        
+        banner "WARNING!"
+        warncont ""
+        warncont "WARNING: Using mktop to create the topology for $lig"
+	warncont ""
+        warncont "Check the report from mktop to verify the progress. Pay"
+        warncont "special attention to charge and connectivity assignment"
+        warncont "and to topology terms for which the force field parameters"
+        warncont "had to be adapted."
+	warncont ""
+        warncont "You may find useful to consult other topologies generated"
+        warncont "by different programs (stored in specific subdirectories)"
+        warncont ""
+	
+        # add updated coorfinates to complex
+        egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+            sed -e 's/HETATM/ATOM  /g' >> $complex.pdb
+
+        # add ligand topology to complex
+        cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+        " >| ${complex}Tmp.top
+
+        # add molecule count to complex
+        echo "$lig      1" >> ${complex}Tmp.top
+        mv ${complex}Tmp.top $complex.top
+        #echo "$lig added to $complex.top"
+
+	return $OK
+    else
+        return $ERROR
+    fi
+}
+
+
+#
+# NAME
+#	add_ligand_oplsaa_ligpargen
+#
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2019
+#
+function add_ligand_oplsaa_ligpargen() {
+    # you need a topology directory named $lig.ligpargen containing
+    # the OPLS-AA topology files generated by the ÑigParGen server
+    # at jorgensenresearch.com/ligpargen
+    if [ $# -ne 2 ] ; then errexit "complex lig"
+    else notecont $* ; fi
+    
+    local complex=$1
+    local lig=$2
+
+    # sanity checks
+    if [ -s $lig.itp ] ; then notecont ".ITP EXISTS, using it" ; return $OK ; fi
+    if [ ! -s $lig.ligpargen/*.itp ] || [ ! -s $lig.ligpargen/*.gro ] 
+    then  
+        warncont "NO GRO OR ITP FILE FOUND" 
+	warncont ""
+	warncont "If you want to use LigParGen-generated OPLS-AA"
+	warncont "parameters, please, submit the molecule to the"
+	warncont "LigParGen server"
+	warncont ""
+	warncont "http://jorgensenresearch.com/ligpargen"
+	warncont ""
+	warncont "download the results (hint click on 'ALL') and"
+	warncont "place them uncompressed inside a folder named"
+	warncont "$lig.ligpargen"
+	warncont "in the output directory, so that we can find"
+	warncont "the topology."
+	return $ERROR 
+    fi
+
+    # XXX JR XXX
+    # don't use ligpargen coordinates for they may be different from the
+    # ones in the model we want to simulate
+    # this would only make sense if we generated the topology ourselves
+    # on the fly from the coordinates in the original complex and hence
+    # the coordinates in ligpargen output correspond to our own coords.
+    #cp $lig.ligpargen/*.gro ${lig}_ok.gro 
+    #$editconf -f ${lig}_ok.gro -o ${lig}_ok.pdb
+    #
+    # use instead the ones extracted from the original complex
+    # IMPORTANT NOTE: THE TOPOLOGY MUST HAVE BEEN GENERATED WITH
+    # EXACTLY THE SAME NUMBER OF ATOMS (ie. if there are missing H
+    # e.g. ionized molecule, the PDB used with LigParGen should also
+    # miss them, or the number of coordinates in the PDB and the 
+    # topology won't match.
+    cp $lig.pdb ${lig}_ok.pdb
+    cp $lig.ligpargen/*.itp $lig.itp
+
+    # add updated coordinates to complex
+    egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+        sed -e 's/^HETATM/ATOM  /g' >> $complex.pdb
+
+    # add ligand topology to complex
+    cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+    " >| ${complex}Tmp.top
+
+    # add molecule count to complex
+    echo "$lig                 1" >> ${complex}Tmp.top
+    mv ${complex}Tmp.top $complex.top
+    #echo "$lig added to $complex.top"
+    
+    # and that should be it
+    return $OK
+}
+
+#
+# NAME
+#	add_ligand_oplsaa_topolgen
+#
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function add_ligand_oplsaa_topolgen {
+    if [ $# -lt 1 ] ; then errexit "complex lig"
+    else notecont $* ; fi
+
+    complex=$1
+    lig=$2
+    
+    if [ -e $lig.topolgen/$lig.oplsaa.itp ] ; then
+        notecont "Using topolgen topology"
+        # original PDB file which SHOULD HAVE CONTAINED ALL ATOMS
+        cp $lig.topolgen/$lig.pdb ${lig}_ok.pdb
+        # the itp file is self contained and matches the
+        cp $lig.topolgen/$lig.oplsaa.itp $lig.itp
+
+        banner " WARNING!"
+        if [ ! -e $lig.topolgen/$lig.oplsaa.itp.topolgen ] ; then
+            warncont ""
+            warncont "WARNING: Using a non-charge corrected TopolGen topology for $lig"
+            warncont ""
+            warncont "The charges assigned are only a rough approximation,"
+            warncont "you should seriously consider creating a MOL2 file"
+            warncont "with accurate charges and using it as template to"
+            warncont "correct topolgen charges."
+            warncont ""
+            warncont "Some hints for computing charges:"
+            warncont "	Use any SQM or QM program (e.g. mopac)"
+            warncont "	Use Antechamber"
+            warncont "	Use UCSF Chimera with AM1-BCC"
+            warncont "	Use babel --partialcharge with any of"
+            warncont "		qtpie qeq eem mmff94 or gasteiger"
+            warncont ""
+            warncont "You may find useful to consult other topologies generated"
+            warncont "by different programs (stored in specific subdirectories)"
+            warncont ""
+            warncont "If that fails, search the Net for existing parameters or"
+            warncont "ask in specialized mailing lists for help"
+            warncont ""
+        else
+            warncont ""
+            warncont "WARNING"
+            warncont ""
+            warncont "Using TopolGen topolgy for $lig"
+            warncont ""
+            warncont "If it fails, is incomplete or gives errors later on,"
+            warncont "you may find useful to consult other topologies generated"
+            warncont "by different programs (stored in specific subdirectories)"
+            warncont ""
+            warncont "If that fails, search the Net for existing parameters or"
+            warncont "ask in specialized mailing lists for help"
+            warncont ""
+	fi
+        # add updated coorfinates to complex
+        egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+            sed -e 's/HETATM/ATOM  /g' >> $complex.pdb
+
+        # add ligand topology to complex
+        cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+        " >| ${complex}Tmp.top
+
+        # add molecule count to complex
+        echo "$lig      1" >> ${complex}Tmp.top
+        mv ${complex}Tmp.top $complex.top
+        #echo "$lig added to $complex.top"
+
+	return $OK
+    else
+        return $ERROR
+    fi
+}
+
+
+#
+# NAME
+#	add_ligand_oplsaa_acpype
+#
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function add_ligand_oplsaa_acpype {
+    if [ $# -ne 2 ] ; then errexit "complex lig" 
+    else notecont $* ; fi
+
+    complex=$1
+    lig=$2
+    
+    if [ -s $lig.acpype/${lig}_GMX_OPLS.itp ] ; then
+        if [ ! -e $lig.acpype/${lig}_NEW.pdb ] ; then
+            echo ""
+            warncont "topology of $lig did not compute successfully"
+            return $ERROR
+        fi
+        
+	# Add updated $lig_NEW.pdb to the Complex
+        #	NOTE: $lig_NEW contains ALL the hydrogens, it
+        #	matches the ITP file, but may not have the 
+        #	ionization state that we want.
+        grep -h ATOM $lig.acpype/${lig}_NEW.pdb >> ${lig}_ok.pdb
+
+	# install the ligand's topology file
+	cp $lig.acpype/${lig}_GMX_OPLS.itp $lig.itp
+        
+	# DO NOT USE. IT IS BETTER TO LET THE SYSTEM FAIL AND
+        #	FORCE THE USER TO DO THE RIGHT THING
+        #
+        # OPLS-AA specific tweak
+        #
+        # We may need to comment out some dih parameters in Ligand.itp that 
+        # OPLS/AA does not recognise.
+        # Note that the parameters values are derived for AMBER99SB/GAFF and NOT for OPLS/AA.
+        # A proper solution would involve finding the right OPLS atom types and parameters for the
+        # calculation according to [http://dx.doi.org/10.1021%2Fja9621760 Jorgensen et al. (1996)].
+        # Be aware of it!
+	if [ "not" = "yes" ] ; then
+	    sed -E 's/([0-9]+ +[0-9]+ + [0-9]+ );/\1 /g'$lig.itp > TmpFiLe; mv -b TmpFiLe $lig.itp
+        fi
+
+        # extract new atomtypes (we only want them included once
+        # at the beginning, hence we'll process them separately)
+        cat $lig.acpype/${lig}_GMX_OPLS.itp | \
+            sed -n '1,/atomtypes/p;/moleculetype/,$p' | \
+            grep -v " atomtypes " > $lig.itp
+        sed -n -e '/atomtypes/,/^$/p' $lig.acpype/${lig}_GMX_OPLS.itp >> atomtypes
+        #
+        # or perhaps it would be better to remove any new atomtype
+        # and let the run fail later?
+        #
+        #sed -e '/atomtypes/,/^$/d' $lig.acpype/${lig}_GMX_OPLS.itp > $lig.itp
+
+        banner " WARNING!"
+        warncont ""
+        warncont "WARNING: Using ACPYPE topology for $lig"
+        warncont ""
+        warncont "most likely some parameters or atom types will be"
+        warncont "unavailable."
+        warncont ""
+        warncont "If simulation fails, you may be able to repair it"
+        warncont "by uncommenting missing parameters (removing the ';')"
+        warncont "but this will likely enable approximate parameters"
+        warncont "derived from AMBER that may be far from ideal."
+        warncont ""
+        warncont "Better than that, you should review your original"
+        warncont "ligands, ensure they have all needed H and bonds"
+        warncont "and save them as separate PDB files with CONECT"
+        warncont "records."
+        warncont ""
+        warncont "Even better yet: in addition you should consider"
+        warncont "computing charges by an accurate method and saving"
+        warncont "them also in a .mol2 file"
+        warncont ""
+        warncont "Some hints for computing charges:"
+        warncont "	Use any SQM or QM program (e.g. mopac)"
+        warncont "	Use Antechamber"
+        warncont "	Use UCSF Chimera with AM1-BCC"
+        warncont "	Use babel --partialcharge with any of"
+        warncont "		qtpie qeq eem mmff94 or gasteiger"
+	warncont ""
+        warncont "You may find useful to consult other topologies generated"
+        warncont "by different programs (stored in specific subdirectories)"
+        warncont ""
+        warncont "If that fails, search the Net for existing parameters or"
+        warncont "ask in specialized mailing lists for help"
+        warncont ""
+
+
+        # add updated coorfinates to complex
+        egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+            sed -e 's/HETATM/ATOM  /g' >> $complex.pdb
+
+        # add ligand topology to complex
+        cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+        " >| ${complex}Tmp.top
+
+        # add molecule count to complex
+        echo "$lig      1" >> ${complex}Tmp.top
+        mv ${complex}Tmp.top $complex.top
+        #echo "$lig added to $complex.top"
+
+	# Rebuild atomtypes.itp:
+        # now insert any new atom types introduced by the new topologies
+        # before the ligands' definitions.
+        #
+        #	With ACPYPE we may have many chances of getting an
+        #	incomplete topology with new atom types that should be 
+        #	reviewed.
+        #	New atomtypes can only be included once, which is why
+        #	we need to rebuild atomtypes.itp and check if it has
+        #	been already included
+	echo "[ atomtypes ]" > atomtypes.itp
+        #echo "; name    at.num      mass     charge   ptype  sigma         epsilon" >> atomtypes.itp
+        # first ensure there are no duplicates
+        newatoms=0
+        while IFS='' read line ; do 
+            atom=`echo $line | cut -c 1-3 | tr -d ' '`
+            echo "${atom}=${line}"
+            grep -q "^$atom " $GMX_TOP/oplsaa.ff/ffnonbonded.itp
+            if [ $? -ne 0 ] ; then 
+                echo "NOT FOUND: $line" 
+                echo "$line" >> atomtypes.itp
+                newatoms=$(($newatoms+1))
+            fi
+        done < <(sort atomtypes | uniq | grep "^ ")
+        echo "" >> atomtypes.itp
+        if [ $newatoms -gt 0 ] ; then
+            banner "IMPORTANT"
+            banner " WARNING "
+            warncont "New atom types defined"
+            warncont "Edit the file 'atomtypes.itp' to revise new atom num, mass and charge"
+            warncont "See \$GMX_TOP/oplsaa.ff/ffnonbonded.itp as reference"
+            exit 1
+        fi
+        # add atomtypes.itp to the complex if not already included
+	if ! grep -q '#include "atomtypes.itp"' Complex.top ; then
+            cat Complex.top | sed "/forcefield\.itp\"/a\
+#include \"atomtypes.itp\"\
+            " >| Complex2.top
+            mv Complex2.top Complex.top
+	fi
+        
+	return $OK
+    else
+        warncont "no valid topology found for $lig"
+        warncont "$lig.acpype/${lig}_GMX_OPLS.itp not found"
+        return $ERROR
+    fi
+}
+
+
+#
+# NAME
+#	add_ligand_oplsaa -- add a ligand to a Gromacs complex
+#
+# SYNOPSIS
+#	add_ligand_oplsaa complex ligand
+#
+# DESCRIPTION
+#	Expects to get two file datasets, complex and ligand, to
+#	merge them.
+#
+#	Each of the datasets must consist of a PDB file and a 
+#	Gromacs topology constellation (the .itp and all required
+#	.itp sub-include files).
+#
+#	If the topology is not available, then it will search for
+#	existing topologies that could alternately be used and
+#	select one of them based on a hard-coded hierarchy:
+#
+#	topolbuild > mktop > topolgen > acpype
+#
+#	If the topology selected does not work (which will be
+#	seen only later), then the user simply needs to take 
+#	another one and manually install it instead.
+#
+# CAVEAT
+#	The selection of topology is arbitrary. We are not yet
+#	sure which is best than the others. Beware!
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function add_ligand_oplsaa {
+    if [ $# -lt 1 ] ; then errexit "complex [lig] [topol]"
+    else notecont $* ; fi
+
+    local complex=$1
+    local lig=$2
+    local topology=${3:-'ligpargen'}
+    # global defaults
+    local ff={$ff:-oplsaa}
+    
+    # NOTE: We should check argument validity
+
+    echo ""
+    notecont "Adding ligand $lig to complex $complex"
+    notecont "topology=$topology"
+    echo ""
+    
+    # if there is not a topology already:
+    if [ -s $lig.itp ] ; then
+        notecont "Using existing $lig.itp topology"
+        notecont "ENSURE that the topology matches the atoms extracted"
+        # if the topology defines more, or less atoms (e.g. H in an ionized
+        # molecule, then the simulation will fail).
+        if [ ! -s ${lig}_ok.pdb ] ; then
+            cp ${lig}.pdb ${lig}_ok.pdb
+        fi
+        # check if the topology has already been included
+        # (e.g.) by a previous run
+        if ! grep -q "#include \"${lig}.itp\"" Complex.top ; then
+            # add ligand topology to complex
+            cat $complex.top | sed "/forcefield\.itp\"/a\
+#include \"$lig.itp\"\
+            " >| ${complex}Tmp.top
+
+            # add molecule count to complex
+            echo "$lig      1" >> ${complex}Tmp.top
+            mv ${complex}Tmp.top $complex.top
+            #echo "$lig added to $complex.top"
+        fi
+        # check if ligand coordinates have been included
+        if ! grep "$lig" $complex.pdb ; then
+            # add ligand coorfinates to complex
+            egrep '(^ATOM  )|(^HETATM)' ${lig}_ok.pdb | \
+                sed -e 's/^HETATM/ATOM  /g' >> $complex.pdb
+        fi
+        return $OK
+    fi
+    # UNDOCUMENTED: use command-line selected topology if specified
+    case $topology in
+        ligpargen)
+	        add_ligand_oplsaa_ligpargen $complex $lig ;;
+    	topolbuild)
+        	add_ligand_oplsaa_topolbuild $complex $lig ;;
+        topolgen)
+        	add_ligand_oplsaa_topolgen $complex $lig ;;
+        mktop)
+        	add_ligand_oplsaa_mktop $complex $lig ;;
+        acpype)
+        	add_ligand_oplsaa_acpype $complex $lig ;;
+        # in any other case we fall through to the default heuristic
+    esac
+    # check if that worked
+    if [ -s $lig.itp ] ; then return $OK ; fi
+    # if it didn't, fall through to the default heuristic
+    
+    warning "$opology failed. Trying default heuristic"
+
+    # for OPLS/AA we prefer first this one
+    if [ -e $lig.ligpargen/*.itp ] ; then
+    	add_ligand_oplsaa_ligpargen $complex $lig
+	return $OK
+
+    # we should consider including tppmktop as well
+
+    # now we prefer topolbuild topology
+    elif [ -e $lig.topolbuild/$lig.itp ] ; then
+    	add_ligand_oplsaa_topolbuild $complex $lig
+	return $OK
+    # if not we prefer mktop
+    elif [ -e $lig.mktop/$lig.opls.itp ] ; then
+	add_ligand_oplsaa_mktop $complex $lig
+	return $OK
+    # next we'll use ACPYPE topology
+    elif [ -e $lig.acpype/${lig}_GMX_OPLS.itp ] ; then
+	add_ligand_oplsaa_acpype $complex $lig
+        return $OK
+    # finally, we prefer topolgen (charge corrected) topology
+    elif [ -e $lig.topolgen/$lig.oplsaa.itp ] ; then
+	add_ligand_oplsaa_topolgen $complex $lig
+        return $OK
+    else
+        banner "  WARNING  "
+    	warncont ""
+    	warncont "no valid topology found for $lig"
+        warncont "$lig NOT ADDED!!!"
+	warncont ""
+	return $ERROR
+    fi
+}
+
+# work in progress DO NOT USE
+function add_ligand_amber() {
+    if [ $# -lt 1 ] ; then errexit "complex [lig]" 
+    else notecont $* ; fi
+
+    local complex=$1
+    local lig=$2
+    #global ff=${ff:-amber99sb}
+    
+    # NOTE: We should check argument validity
+
+    echo ""
+    notecont "Adding ligand $lig to complex $complex"
+    notecont "topology=$topology"
+    echo ""
+    if [ ! -e $lig.itp ] ; then
+        if [ ! -d $lig.acpype ] ; then
+	    if [ ! -e $lig.pdb ] ; then
+        	warncont "$lig.pdb does not exist!"
+		return $ERROR
+	    fi
+	    make_acpype_topology $lig.pdb charge
+	fi
+        # remove atomtypes (we only want them included once
+        # at the beginning, hence we'll process them separately
+        cat $lig.acpype/*_GMX.itp | sed -n '1,/atomtypes/p;/moleculetype/,$p' | \
+            grep -v " atomtypes " > $lig.itp
+        sed -n -e '/atomtypes/,/^$/p' $i/*_GMX.itp >> atomtypes
+    fi
+    cat $complex.top | sed "/forcefield\.itp\"/a\
+        #include \"$lig.itp\"\
+    " >| ${complex}_tmp.top
+    echo "$lig      1" >> ${complex}_tmp.top
+
+    # We have added to a file named atomtypes any new atom types identified
+    # in the ligand. Rebuild the atomtypes.itp file
+    echo "[ atomtypes ]" > atomtypes.itp
+    #echo "; name    at.num      mass     charge   ptype  sigma         epsilon" >> atomtypes.itp
+    # first ensure there are no duplicates
+    export IFS=''
+    newatoms='0'
+    #sort atomtypes | uniq | grep "^ " | \
+    while read line ; do 
+        atom=`echo $line | cut -c 1-3 | tr -d ' '`
+        echo "${atom}=${line}"
+        grep -q "^$atom " $GMX_TOP/$ff/ffnonbonded.itp
+        if [ $? -ne 0 ] ; then 
+            echo "NOT FOUND: $line" 
+            echo "$line" >> atomtypes.itp
+            newatoms=$(($newatoms+1))
+        fi
+    done < <(sort atomtypes | uniq | grep "^ ")
+    echo "" >> atomtypes.itp
+    if [ $newatoms -gt 0 ] ; then
+        banner " WARNING!"
+        warncont "New atom types defined"
+        warncont "Edit the file 'atomtypes.itp' to revise new atom"
+	warncont "num, mass and charge"
+        warncont "See $GMX_TOP/$ff/ffnonbonded.itp as reference"
+        return $OK
+    fi
+    
+    #rm atomtypes
+    cat ${complex}_tmp.top | sed "/forcefield\.itp\"/a\
+    #include \"atomtypes.itp\"\
+    " >| ${omplex}.top
+}
+
+# NAME
+#	make_ion_config - Make a minimal Gromacs configuration file for 
+#		adding ions to a complex
+#
+# SYNOPSIS
+#	make_ion_config
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function make_ion_config {
+    # we'll ignore any arguments
+    if [ ! -s ion.mdp ] ; then
+
+# Create ion.mdp file
+        cat << EOF >| ion.mdp
+; ions.mdp - used as input into grompp to generate ions.tpr
+; Parameters describing what to do, when to stop and what to save
+integrator	= steep		; Algorithm (steep = steepest descent minimization)
+emtol		= 1000.0  	; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
+emstep          = 0.01          ; Energy step size
+nsteps		= 50000	  	; Maximum number of (minimization) steps to perform
+
+; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
+nstlist		    = 1		; Frequency to update the neighbor list and long range forces
+cutoff-scheme   = Verlet
+ns_type		    = grid	; Method to determine neighbor list (simple, grid)
+coulombtype	    = PME	; Treatment of long range electrostatic interactions
+rcoulomb	    = 1.0	; Short-range electrostatic cut-off
+rvdw		    = 1.0	; Short-range Van der Waals cut-off
+pbc		    = xyz 	; Periodic Boundary Conditions (yes/no)
+EOF
+
+    fi
+}
+
+
+# NAME
+#	solvate - Solvate a Gromacs structure file
+#
+# SYNOPSIS
+#	solvate coordinates method
+#
+# DESCRIPTION
+#	Coordinates can be any of a Gromacs GRO file or a PDB file ending in
+#	.pdb or .brk
+#
+#	In addition to the coordinates, a corresponding file with the same
+#	name, but ending in .top and containing the Gromacs topology is also
+#	needed.
+#
+#	The method can be any of "none" (for no solvation), "water" for
+#	filling up the PBC box with water only, "counterions" for filling
+#	the PBC box with water and substituting enough water molecules by
+#	ions as needed to neutralize the system total charge, or "saline"
+#	for saline serum at a concentration of 0.15 M.
+#
+#	On exit there will be new files with the same name and an
+# 	appropriate extension for the new solvated coordinates and topology:
+#	for a 'coordinates' file of the form name.ext we get either one of
+#		name+water.ext
+#		name+ion.ext
+#		name+saline.ext
+#	depending on the method selected.
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function solvate {
+    if [ $# -ne 2 ] ; then errexit "pdbfile solvent"
+    else notecont $* ; fi
+
+    local pdb=$1
+    local sol=$2
+
+    local dir=`dirname $pdb`
+    local fin="${pdb##*/}"
+    local ext="${fin##*.}"
+    local nam="${fin%.*}"
+    
+    #global ff=${ff:-oplsaa}
+    #global WATER=${WATER:-tip4p}
+    
+    echo ""
+    notecont "solvating $pdb using $sol"
+    echo ""
+    if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" -a ! "$ext" == "gro" ] ; then
+        warncont "Input file must be a PDB or GRO file."
+        return $ERROR
+    fi
+    if [ ! -e $nam.top ] ; then
+    	warncont "$nam.top does not exist"
+	return $ERROR
+    fi
+
+    # check if already done
+    if [ -s Complex_b4em.top ] ; then return $OK ; fi
+
+    cd $dir
+
+    # The first parameter is the molecular system to solvate.
+    #
+    # The second parameter indicates whether to solvate or not
+    # and the type of solvation to be done:
+    #	none or water or counterions or saline
+    #
+    if [ "$sol" == 'none' ] ; then
+        # we do not add anything, simply jump to ready for EM
+        cp Complex_PBC.pdb Complex_b4em.pdb
+        cp Complex_PBC.top Complex_b4em.top
+	return $OK
+    fi
+    
+    # By default, anything other than 'none' implies solvation
+    echo ""
+    notecont "Soaking in water."
+    if [ ! -s $nam+water.$ext ] ; then
+        $genbox -cp $fin -cs $WATER -o $nam+water.$ext -p $nam.top 
+	# if adding fails, try using spc16.gro instead of $WATER
+	if [ $? -ne 0 ] ; then
+	    $genbox -cp $fin -cs spc16.gro -o $nam+water.$ext -p $nam.top
+	    if [ $? -ne 0 ] ; then return $ERROR ; fi
+        fi
+	# we want to keep files in synchrony
+        mv $nam.top $nam+water.top
+        mv \#$nam.top.1\# $nam.top
+    else
+	notecont "Using already existing $nam+water.$ext"
+    fi
+
+    if [ ! -s ion.mdp ] ; then
+	# Create an ION.MDP config file for subsequent steps
+        make_ion_config
+    fi
+
+    if [ ! -s $nam+water.tpr ] ; then
+        # NOTE: we expect one warning here because the system will
+        # most likely have non-zero total charge (which is what we
+        # are actually trying to fix, so we set -maxwarn to 1
+        $grompp -maxwarn 1 -f ion.mdp -c $nam+water.$ext -p $nam+water.top \
+	        -o $nam+water.tpr
+        if [ $? -ne 0 ] ; then return $ERROR ; fi
+        mv mdout.mdp ion.out.mdp
+    else
+	notecont "Using laready existing $nam+water.tpr"
+    fi
+
+    # now add any ions if needed
+    if [ "$sol" = 'saline' ] ; then
+        echo ""
+        notecont "Converting water to saline serum."
+
+	if [ ! -s $nam+saline.$ext ] ; then
+	    # in old gromacs we used -norandom
+            if [ "gmx" == "" ] ; then
+                #echo 13| genion -s Complex_water.tpr -o Complex_saline.pdb -neutral -conc 0.15 -p Complex_water.top -norandom -nname CL- -pname NA+
+                echo "SOL" | $genion -s $nam+water.tpr \
+		    -o $nam+saline.$ext -neutral \
+	            -conc 0.15 -p $nam+water.top -norandom -nname CL -pname NA
+                if [ $? -ne 0 ] ; then return $ERROR ; fi
+            else
+                echo "SOL" | $genion -s $nam+water.tpr \
+		    -o $nam+saline.$ext -neutral \
+	            -conc 0.15 -p $nam+water.top -nname CL -pname NA
+                if [ $? -ne 0 ] ; then return $ERROR ; fi
+            fi
+
+            # make newly created top file match output pdb file name
+            mv $nam+water.top $nam+saline.top
+            # and recover old top file for the old pdb file name
+	    mv ./\#${nam}+water.top.1\# $nam+water.top
+	else
+	    notecont "Using already existing $nam+saline.$ext"
+	fi
+
+    elif [ "$sol" = 'counterions' ] ; then
+        echo ""
+        notecont "Inserting ions in the water."
+	# Apparently -neutral only works with -conc
+	# But we can let Gromacs compute how many ions are needed
+        # by using -conc 0.0000001 
+        # <:-O
+
+	if [ ! -s $nam+ion.$ext ] ; then
+            # remove -norandom option (no longer supported)
+            echo "SOL" | $genion -s $nam+water.tpr -o $nam+ion.$ext \
+		    -p $nam+water.top \
+		    -neutral \
+	    	    -nname CL -pname NA
+            if [ $? -ne 0 ] ; then return $ERROR ; fi
+	    # keep topology and pdb file names in synchrony
+            mv $nam+water.top $nam+ion.top
+	    # recover the old top file for the old pdb
+	    mv ./\#$nam+water.top.1\# $nam+water.top
+	else
+	    notecont "Using already existing $nam+ion.$ext"
+	fi
+
+    fi
+
+    
+    cd -
+    return $OK
+}
+
+
+function make_em_config {
+	# does not require any arguments as we can use a generic one
+	#
+	# CHECK IF IT NEEDS TO BE ADAPTED TO THE FORCE FIELD
+# Create em.mdp file
+cat << EOF >| em.mdp
+define                   = -DFLEXIBLE
+integrator               = cg ; steep
+nsteps                   = 8000
+constraints              = none
+emtol                    = 10.0  ; kJ mol-1 nm-1
+nstcgsteep               = 10     ; do a steep every 10 steps of cg
+emstep                   = 0.01   ; used with steep
+nstcomm                  = 10
+nstcalcenergy            = 10
+coulombtype              = PME
+ns_type                  = grid
+rlist                    = 1.0
+rcoulomb                 = 1.0
+rvdw                     = 1.0
+Tcoupl                   = no
+Pcoupl                   = no
+gen_vel                  = no
+nstxout                  = 100      ; write coords every # step
+cutoff-scheme            = verlet
+EOF
+
+}
+
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	make_ext_index - make an extended index of a coordinate file
+# #
+# # SYNOPSIS
+# #	make_ext_index coordinates
+# #
+# # DESCRIPTION
+# #	Coordinates must be a filename ending in .pdb or .gro containing
+# #	the atomic coordinates of a protein or protein complex.
+# #
+# #	If the input file is in PDB format, it will be scanned for the
+# #	existence of chains, and each chain will be indexed separately,
+# #	with all atoms and ligands that have not been assigned to a chain
+# #	being added into chain 'Z'.
+# #
+# #	If the input file is in Gromacs format, it will simply be indexed.
+# #
+# #	In either case, the coordinates will be scanned for the presence
+# #	of Water and possibly ions. If there are, two additional indexes
+# #	will be built, one for solvent (water and ions) and one for the
+# #	solute(s) containing protein and ligands.
+# #
+# # CAVEAT
+# #	We are assuming that the system is not already using chain 'Z'.
+# #	This may be a little too optimistic.
+# #
+# #	If there are atoms that should belong to the same chain but are
+# #	not labelled as such, said atoms will be taken 'out' of their chain
+# #	and assigned to chain 'Z'.
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function make_ext_index {
+#     if [ $# -ne 1 ] ; then errexit "file"
+#     else notecont $* ; fi
+# 
+#     local file=$1
+#     local sol=''
+#     local nosol=''
+#     local solvent=''
+#     
+#     local f="${file##*/}"	# filename with no dir
+#     local e="${file##*.}"	# extension (pdb or gro)
+#     local n="${f%.*}"		# name
+# 
+#     if [ -e $n.ndx ] ; then 
+#     	notecont "Using already existing $n.ndx"
+#         return $OK
+#     fi
+#     # make an initial index (with chain IDs, if PDB) 
+#     if [ "$e" = "pdb" ] ; then
+#         # Make index file from PDB and try all possible one-letter chains
+#         # first, assign any unassigned ATOM or HETATM to chain Z
+#         #	this is needed for e.g. SOL atoms
+#         cat $file | sed -e '/\(^ATOM  \|^HETATM\).\{15\} / s/^\(.\{21\}\) /\1Z/g' > $file.pdb
+#         (
+#             for i in {A..Z} ; do
+# 	        echo "chain $i"
+#             done
+#             echo "q"
+#         ) | $make_ndx -f $file.pdb -o $n.ndx
+#         rm $file.pdb
+#     else
+#         echo "q" | $make_ndx -f $file -o $n.ndx
+#     fi
+# 
+# 
+#     # count number of existing groups (make_ndx uses zero-offset, so this
+#     #	will give us the number that will be assigned to the next group created)
+#     sol=`grep -c "^\[" $n.ndx`
+#     nosol=$(($sol + 1))
+#     # check if there are water and ions
+#     grep -q Water_and_ions $n.ndx
+#     if [ $? -eq 0 ] ; then
+#     	solvent='Water_and_ions'
+#     else
+#         # check if there is only water
+#         grep -q Water $n.ndx
+#         if [ $? -eq 0 ] ; then
+#     	    solvent='Water'
+#         else
+#             # no water, keep default $n.ndx and return
+#             return $OK
+#         fi
+#     fi
+# 
+#     notecont "$solvent $sol $nosol"
+#     # add solvent groups to the index file
+#     echo "
+#     \"$solvent\"
+#     name $sol Solvent
+#     ! $sol
+#     name $nosol Solute
+#     q
+#     " | $make_ndx -f $file -n $n.ndx -o $n.ndx
+# 
+#     rm -f ./\#$n.ndx*
+# 
+# 
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/make_ext_index.bash
+fi
+
+
+function make_eq_nvt_200ps_config {
+    if [ $# -ne 1 ] ; then errexit "ngroups"
+    else notecont $* ; fi
+    #	Takes as argument the number of groups, either 1 or 2
+    #	We have two groups when we solvate the system, and we
+    #	must heat the solvent but not the protein
+    #
+    #	Note, we could get the number of groups from the environment
+    #	or from the presence of solvent
+    #
+    local ngroups=${1:-1}
+    
+    local tau_t=''
+    local comm_grps=''
+    local tc_grps=''
+    local ref_t=''
+    
+    if [ $ngroups -eq 2 ] ; then
+    # There will be two simulation groups, solvent and solute
+        tau_t='0.1 0.1'
+        comm_grps="Solute Solvent"
+        tc_grps="Solute Solvent"
+        ref_t='300 300'
+    else
+        tau_t='0.1'
+        comm_grps="System"
+        tc_grps="System"
+        ref_t='300'
+    fi
+
+
+    # Create eq_nvt_200ps.mdp file
+    cat << EOF >| eq_nvt_200ps.mdp
+; NVT EQUILIBRATION
+; T is controlled, P is not controlled yet.
+;
+; This file calls for an MD run of 100,000 steps with a 2 fs timestep (a total 
+; of 200 ps). The 'define = -DPOSRES' line initiates the backbone restraints 
+; on the protein, which should remain on until production MD. Temperature 
+; coupling is performed using the Berendsen method. In order to be sure 
+; velocities (and therefore temperature) are evenly distributed across all of 
+; the molecule types, it is a good idea to couple protein atoms and 
+; non-protein atoms to separate baths. Without separate coupling, you run the 
+; risk weird phenomena such as a system where the water molecules are at 
+; 350 K and the protein is at 200 K. Finally, all bonds are constrained using 
+; the linear constraint solver (LINCS) algorithm. Review the GROMACS manual 
+; if you are unfamiliar with the implementation or purpose of any of these 
+; parameters.
+
+; 7.3.2 Preprocessing
+define                  = -DPOSRES      ; position restrain the protein
+
+; 7.3.3 Run Control
+integrator               = md
+dt                       = 0.002	; step in picoseconds
+nsteps                   = 100000	; 2 picoseconds
+comm_mode                = Linear       ; remove center of mass translation
+nstcomm                  = 10           ; [steps] frequency of mass motion removal
+comm_grps                = $comm_grps   ; group(s) for center of mass motion removal
+
+; 7.3.8 Output Control
+nstxout                 = 25000         ; [steps] freq to write coordinates to trajectory
+nstvout                 = 25000         ; [steps] freq to write velocities to trajectory
+nstfout                 = 25000         ; [steps] freq to write forces to trajectory
+nstlog                  = 100           ; [steps] freq to write energies to log file
+nstenergy               = 100           ; [steps] freq to write energies to energy file
+nstxtcout               = 100           ; [steps] freq to write coordinates to xtc trajectory
+xtc_precision           = 1000          ; [real] precision to write xtc trajectory
+xtc_grps                = System        ; group(s) to write to xtc trajectory
+energygrps              = System        ; group(s) to write to energy file
+
+; 7.3.9 Neighbor Searching
+nstlist                 = 1             ; [steps] freq to update neighbor list
+ns_type                 = grid          ; method of updating neighbor list
+pbc                     = xyz           ; periodic boundary conditions in all directions
+rlist                   = 1.2           ; [nm] cut-off distance for the short-range neighbor list
+
+; 7.3.10 Electrostatics
+coulombtype             = PME           ; Particle-Mesh Ewald electrostatics
+rcoulomb                = 1.2           ; [nm] distance for Coulomb cut-off
+
+; 7.3.11 VdW
+vdwtype                 = cut-off       ; twin-range cut-off with rlist where rvdw >= rlist
+rvdw                    = 1.2           ; [nm] distance for LJ cut-off
+DispCorr                = EnerPres      ; apply long range dispersion corrections
+
+; 7.3.13 Ewald
+fourierspacing          = 0.12          ; [nm] grid spacing for FFT grid when using PME
+pme_order               = 4             ; interpolation order for PME, 4 = cubic
+ewald_rtol              = 1e-5          ; relative strength of Ewald-shifted potential at rcoulomb
+
+; 7.3.14 Temperature Coupling
+;tcoupl                  = berendsen    ; temperature coupling with Berendsen-thermostat
+tcoupl			= V-rescale	; modified Berendsen thermostat
+tc_grps                 = $tc_grps      ; groups to couple seperately to temperature bath
+tau_t                   = $tau_t        ; [ps] time constant for coupling
+ref_t                   = $ref_t        ; [K] reference temperature for coupling
+
+; 7.3.17 Velocity Generation
+gen_vel                 = yes           ; generate velocities according to Maxwell distribution of temperature
+gen_temp                = 310           ; [K] temperature for Maxwell distribution
+gen_seed                = -1            ; [integer] used to initialize random generator for random velocities
+
+; Pressure coupling is off
+pcoupl			= no 		; no pressure coupling in NVT
+
+; 7.3.18 Bonds
+constraints             = all-bonds     ; convert all bonds to constraints
+constraint_algorithm    = LINCS         ; LINear Constraint Solver
+continuation            = no            ; no = apply constraints to the start configuration
+lincs_order             = 4             ; highest order in the expansion of the contraint coupling matrix
+lincs_iter              = 2             ; number of iterations to correct for rotational lengthening
+lincs_warnangle         = 30            ; [degrees] maximum angle that a bond can rotate before LINCS will complainEOF
+optimize_fft            = yes
+EOF
+}
+
+function make_eq_npt_200ps_config {
+    if [ $# -ne 1 ] ; then errexit "ngroups"
+    else notecont $* ; fi
+    #	Takes as argument the number of groups, either 1 or 2
+    #	We have two groups when we solvate the system, and we
+    #	must heat the solvent but not the protein
+    #
+    #	Note, we could get the number of groups from the environment
+    #	or from the presence of solvent
+    #
+    local ngroups=${1:-1}
+    
+    local tau_t=''
+    local comm_grps=''
+    local tc_grps=''
+    local ref_t=''
+    
+    if [ $ngroups -eq 2 ] ; then
+    # There will be two simulation groups, solvent and solute
+        tau_t='0.1 0.1'
+        comm_grps="Solute Solvent"
+        tc_grps="Solute Solvent"
+        ref_t='300 300'
+    else
+        tau_t='0.1'
+        comm_grps="System"
+        tc_grps="System"
+        ref_t='300'
+    fi
+
+    # Create equilibration run NPT file
+    cat <<EOF >| eq_npt_200ps.mdp
+; NPT EQUILIBRATION
+; Following equilibration to a target temperature, you must next relax your 
+; system into a constant pressure ensemble. 
+; This parameter file calls for a run of 250,000 steps with a 2 fs timestep 
+; (a total of 500 ps). Position restraints are still being applied to the 
+; backbone. The Berendsen thermostat has been replaced with a Nose-Hoover 
+; thermostat, which will produce a more correct ensemble of kinetic energies. 
+; The Nose-Hoover thermostat, however, must be implemented only after the 
+; system is already near its target temperature (which was achieved by the 
+; Berendsen thermostat), or the kinetic energy of the system will fluctuate 
+; wildly. Because this run will be a continuation of the previous run, 
+; 'gen_vel' has been set to 'no'. Finally, the Parrinello-Rahman method is 
+; used to couple pressure isotropically (the same in all directions) to a 
+; value of 1.0 bar.
+
+; 7.3.2 Preprocessing
+define                  = -DPOSRES      ; position restrain the protein
+
+; 7.3.3 Run Control
+continuation		= yes		 ; Restarting after NVT
+integrator              = md             ; md integrator
+tinit                   = 0              ; [ps] starting time for run
+dt                      = 0.002          ; [ps] time step for integration
+nsteps                  = 100000         ; maximum number of steps to integrate, 0.002 * 100,000 = 200 ps
+comm_mode               = Linear         ; remove center of mass translation
+nstcomm                 = 10             ; [steps] frequency of mass motion removal
+comm_grps               = $comm_grps     ; group(s) for center of mass motion removal
+;continuation            = no            ; no = apply constraints to the start configuration
+
+; 7.3.8 Output Control
+nstxout                 = 25000         ; [steps] freq to write coordinates to trajectory
+nstvout                 = 25000         ; [steps] freq to write velocities to trajectory
+nstfout                 = 25000         ; [steps] freq to write forces to trajectory
+nstlog                  = 100           ; [steps] freq to write energies to log file
+nstenergy               = 100           ; [steps] freq to write energies to energy file
+nstxtcout               = 100           ; [steps] freq to write coordinates to xtc trajectory
+xtc_precision           = 1000          ; [real] precision to write xtc trajectory
+xtc_grps                = System        ; group(s) to write to xtc trajectory
+energygrps              = System        ; group(s) to write to energy file
+
+; 7.3.9 Neighbor Searching
+nstlist                 = 1             ; [steps] freq to update neighbor list
+ns_type                 = grid          ; method of updating neighbor list
+pbc                     = xyz           ; periodic boundary conditions in all directions
+rlist                   = 1.0           ; [nm] cut-off distance for the short-range neighbor list
+
+; 7.3.10 Electrostatics
+coulombtype             = PME           ; Particle-Mesh Ewald electrostatics
+rcoulomb                = 1.0           ; [nm] distance for Coulomb cut-off
+
+; 7.3.11 VdW
+vdwtype                 = cut-off       ; twin-range cut-off with rlist where rvdw >= rlist
+rvdw                    = 1.0           ; [nm] distance for LJ cut-off
+DispCorr                = EnerPres      ; apply long range dispersion corrections
+
+; 7.3.13 Ewald
+fourierspacing          = 0.12          ; [nm] grid spacing for FFT grid when using PME
+pme_order               = 4             ; interpolation order for PME, 4 = cubic
+ewald_rtol              = 1e-5          ; relative strength of Ewald-shifted potential at rcoulomb
+
+; 7.3.14 Temperature Coupling
+tcoupl                  = berendsen    ; temperature coupling with Berendsen-thermostat
+;tcoupl			= V-rescale     ; modified Berendsen thermostat
+tc_grps                 = $tc_grps      ; groups to couple seperately to temperature bath
+tau_t                   = $tau_t	; [ps] time constant for coupling
+ref_t                   = $ref_t	; [K] reference temperature for coupling
+
+; Pressure Coupling
+pcoupl			= Parrinello-Rahman	; Pressure coupling on in NPT
+pcoupltype		= isotropic		; uniform scaling of box vectors
+tau_p			= 2.0			; time constant, in ps
+ref_p			= 1.0			; reference pressure, in bar
+compressibility 	= 4.5e-5		; isothermal compressibility of water, bar^-1
+refcoord_scaling 	= com
+
+; 7.3.17 Velocity Generation
+;	OFF (continuation run)
+gen_vel                 = no           ; generate velocities according to Maxwell distribution of temperature
+;gen_temp                = 310           ; [K] temperature for Maxwell distribution
+;gen_seed                = -1            ; [integer] used to initialize random generator for random velocities
+
+; 7.3.18 Bonds
+constraints             = all-bonds     ; convert all bonds to constraints
+constraint_algorithm    = LINCS         ; LINear Constraint Solver
+lincs_order             = 4             ; highest order in the expansion of the contraint coupling matrix
+lincs_iter              = 1             ; number of iterations to correct for rotational lengthening
+lincs_warnangle         = 30            ; [degrees] maximum angle that a bond can rotate before LINCS will complain
+EOF
+}
+
+function make_md_01_config {
+    if [ $# -ne 1 ] ; then errexit "ngroups"
+    else notecont $* ; fi
+    #	Takes as argument the number of groups, either 1 or 2
+    #	We have two groups when we solvate the system, and we
+    #	must heat the solvent but not the protein
+    #
+    #	Note, we could get the number of groups from the environment
+    #	or from the presence of solvent
+    #
+    local ngroups=${1:-1}
+    
+    local tau_t=''
+    local comm_grps=''
+    local tc_grps=''
+    local ref_t=''
+    
+    if [ $ngroups -eq 1 ] ; then
+    # There will be two simulation groups, solvent and solute
+        tau_t='0.1 0.1'
+        # comm_grps might lead to conflicts between protein/non-protein
+        #	it would possibly be better if it were protein+ligand solvent
+        grps='Solute Solvent'
+        comm_grps="Solute Solvent"
+        tc_grps="Solute Solvent"
+        e_grps=$grps
+        ref_t='300 300'
+    else
+        tau_t='0.1'
+        comm_grps="System"
+        tc_grps="System"
+        e_grps=''
+        ref_t='300'
+    fi
+
+    # frequency to write data to trajectory/log files
+    #freq=100
+    freq=1000
+
+    cat <<EOF >| md_01.mdp
+; MD PRODUCTION RUN
+
+; RUN CONTROL PARAMETERS
+integrator              = md            ; md integrator
+; Start time and timestep in ps
+tinit                   = 0             ; [ps] starting time for run
+dt                      = 0.001         ; [ps] time step for integration
+nsteps                  = 1000000	; maximum number of steps to integrate, 0.001 * 1,000,000 = 1,000 ps
+; For exact run continuation or redoing part of a run
+init_step                = 0
+continuation		= yes		; Restarting after NPT 
+; Part index is updated automatically on checkpointing (keeps files separate)
+;simulation_part          = 1
+
+; control center of mass motion
+comm_mode               = Linear        ; remove center of mass translation
+nstcomm                 = 100           ; [steps] frequency of center of mass motion removal
+comm_grps               = $comm_grps	; group(s) for center of mass motion removal
+
+; LANGEVIN DYNAMICS OPTIONS
+; Friction coefficient (amu/ps) and random seed
+bd-fric                  = 0
+;ld-seed                  = 1963
+
+; OUTPUT CONTROL OPTIONS
+; Output frequency for coords (x), velocities (v) and forces (f)
+; >>>> These values generate a trajectory file > 15GB with 10001 frames
+; >>>> We should consider setting them to a larger value to save less frames
+nstxout                 = $freq          ; [steps] freq to write coordinates to trajectory
+nstvout                 = $freq          ; [steps] freq to write velocities to trajectory
+nstfout                 = $freq          ; [steps] freq to write forces to trajectory
+; Output frequency for energies to log file and energy file
+nstlog                  = $freq          ; [steps] freq to write energies to log file
+nstcalcenergy           = $freq          ; [steps] freq to calculate energies
+nstenergy               = $freq          ; [steps] freq to write energies to energy file
+; Output frequency and precision for .xtc file
+;nstxtcout               = 100          ; [steps] freq to write coordinates to xtc trajectory
+nstxout-compressed       = $freq          ; [steps] freq to write coordinates to xtc trajectory
+;xtc_precision           = 1000          ; [real] precision to write xtc trajectory
+compressed-x-precision   = 1000          ; [real] precision to write xtc trajectory
+; This selects the subset of atoms for the .xtc file. You can
+; select multiple groups. By default all atoms will be written.
+;xtc_grps                = 	        ; group(s) to write to xtc trajectory
+; Selection of energy groups
+energygrps              = $e_grps      ; group(s) to write to energy file
+
+; NEIGHBORSEARCHING PARAMETERS
+cutoff-scheme = verlet
+nstlist                 = 10            ; [steps] freq to update neighbor list
+ns-type                 = grid          ; update nb using neighbour grid cells only
+; Periodic boundary conditions: xyz, no, xy
+pbc                     = xyz           ; periodic boundary conditions in all directions
+periodic_molecules       = no
+; nblist cut-off        
+rlist                    = 1.6		; 1.3-1.5 for opls-aa 
+; long-range cut-off for switched potentials
+;obslete;rlistlong               = -1           ; [nm] Cut-off distance for the long-range neighbor list. This parameter is only relevant for a twin-range cut-off setup with switched potentials
+				       ; provides additional size over rlist to allow the largest sized charge group to be considered
+
+; OPTIONS FOR ELECTROSTATICS AND VDW
+; Method for doing electrostatics
+; 	Electrostatics
+coulombtype             = PME-Switch    ; Particle-Mesh Ewald electrostatics
+;;rcoulomb                = 0.9           ; [nm] distance for Coulomb cut-off
+rcoulomb                = 1.2		; with verlet lists rcoulomb >= rvdw
+rcoulomb-switch         = 1.15		; switching range should be 5% or less
+; Relative dielectric constant for the medium and the reaction field
+epsilon_r                = 1
+epsilon_rf               = 1
+
+; 	VdW
+vdwtype                 = Cut-Off       ; twin-range shift with rlist where rvdw >= rlist
+vdw_modifier            = Force-switch  ; together with former is the same as vdwtype="Shift"
+rvdw                    = 1.2           ; [nm] distance for LJ cut-off
+rvdw-switch             = 1.0		; JCTC, Siu, Pluhackova, B¨ockmann 2012
+; Apply long range dispersion corrections for Energy and Pressure
+DispCorr                = EnerPres      ; apply long range dispersion corrections for energy
+; Extension of the potential lookup tables beyond the cut-off
+table-extension          = 1
+; Seperate tables between energy group pairs
+;undocumented error;energygrp_table          = $e_grps
+
+;	Spacing for the PME/PPPM FFT grid
+fourierspacing          = 0.12          ; [nm] grid spacing for FFT grid when using PME
+; FFT grid size, when a value is 0 fourierspacing will be used
+fourier_nx               = 0
+fourier_ny               = 0
+fourier_nz               = 0
+
+; 	EWALD/PME/PPPM parameters
+pme_order               = 4             ; interpolation order for PME, 4 = cubic
+ewald_rtol              = 1e-5          ; relative strength of Ewald-shifted potential at rcoulomb
+ewald_geometry           = 3d
+epsilon_surface          = 0
+;obsolete;optimize_fft             = yes
+
+; IMPLICIT SOLVENT ALGORITHM
+implicit_solvent         = No
+
+; OPTIONS FOR WEAK TEMPERAURE COUPLING ALGORITHMS
+; 	Temperature coupling  
+;tcoupl                 = nose-hoover    ; temperature coupling with Nose-Hoover ensemble
+;tcoupl			= berendsen	 ; Berendsen thermostat
+tcoupl                  = V-rescale	 ; modified Berendsen thermostat
+; Groups to couple separately
+tc_grps                 = $tc_grps	; groups to couple seperately to temperature bath
+; Time constant (ps) and reference temperature (K)
+tau_t                   = $tau_t        ; [ps] time constant for coupling
+ref_t                   = $ref_t        ; [K] reference temperature for coupling
+
+; 	Pressure Coupling
+pcoupl                  = Parrinello-Rahman     ; pressure coupling where box vectors are variable
+pcoupltype              = isotropic             ; pressure coupling in x-y-z directions
+nstpcouple              = 10			; -1 = nstlist
+; Time constant (ps), compressibility (1/bar) and reference P (bar)
+tau_p                   = 2.0                   ; [ps] time constant for coupling
+ref_p                   = 1.0                   ; [bar] reference pressure for coupling
+compressibility         = 4.5e-5                ; [bar^-1] compressibility
+
+; Scaling of reference coordinates, No, All or COM (Center Of Mass)
+;   contrains particle movement away from reference coordinates
+refcoord_scaling        = com
+
+; GENERATE VELOCITIES FOR STARTUP RUN
+gen_vel                 = no            ; velocity generation turned off
+
+; OPTIONS FOR BONDS    
+constraints             = all-bonds     ; convert all bonds to constraints
+; Type of constraint algorithm
+constraint-algorithm    = LINCS         ; LINear Constraint Solver
+; Use successive overrelaxation to reduce the number of shake iterations
+Shake-SOR                = no
+; Relative tolerance of shake
+shake-tol                = 0.0001
+; Highest order in the expansion of the constraint coupling matrix
+lincs_order             = 4             ; highest order in the expansion of the contraint coupling matrix
+; Number of iterations in the final step of LINCS. 1 is fine for
+; normal simulations, but use 2 to conserve energy in NVE runs.
+; For energy minimization with constraints it should be 4 to 8.
+lincs-iter             = 1             ; number of iterations to correct for rotational lengthening
+
+; Lincs will write a warning to the stderr if in one step a bond
+; rotates over more degrees than
+lincs_warnangle         = 30            ; [degrees] maximum angle that a bond can rotate before LINCS will complain
+; Convert harmonic bonds to morse potentials
+morse                    = no
+
+EOF
+
+}
+
+function make_md_10_config {
+    if [ $# -ne 1 ] ; then errexit "ngroups"
+    else notecont $* ; fi
+    # SHOULD RATHER BE A MODIFICATION OF THE PREVIOUS RUN
+    #	Takes as argument the number of groups, either 1 or 2
+    #	We have two groups when we solvate the system, and we
+    #	must heat the solvent but not the protein
+    #
+    #	Note, we could get the number of groups from the environment
+    #	or from the presence of solvent
+    #
+    local ngroups=${1:-1}
+    
+    local tau_t=''
+    local comm_grps=''
+    local tc_grps=''
+    local ref_t=''
+    
+    if [ $ngroups -eq 1 ] ; then
+    # There will be two simulation groups, solvent and solute
+        tau_t='0.1 0.1'
+        # comm_grps might lead to conflicts between protein/non-protein
+        #	it would possibly be better if it were protein+ligand solvent
+        grps='Solute Solvent'
+        comm_grps="Solute Solvent"
+        tc_grps="Solute Solvent"
+        e_grps=$grps
+        ref_t='300 300'
+    else
+        tau_t='0.1'
+        comm_grps="System"
+        tc_grps="System"
+        e_grps=''
+        ref_t='300'
+    fi
+
+    # frequency to write data to trajectory/log files
+    #freq=100
+    freq=1000
+
+    cat <<EOF >| md_10.mdp
+; MD PRODUCTION RUN
+
+; 7.3.3 Run Control
+integrator              = md            ; md integrator
+tinit                   = 0             ; [ps] starting time for run
+dt                      = 0.001         ; [ps] time step for integration
+nsteps                  = 10000000	; maximum number of steps to integrate, 0.001 * 10,000,000 = 10,000 ps = 10 ns
+comm_mode               = Linear        ; remove center of mass translation
+nstcomm                 = 100           ; [steps] frequency of mass motion removal
+comm_grps               = $comm_grps	; group(s) for center of mass motion removal
+continuation		= yes		; Restarting after NPT 
+
+; 7.3.8 Output Control
+nstxout                 = $freq          ; [steps] freq to write coordinates to trajectory
+nstvout                 = $freq          ; [steps] freq to write velocities to trajectory
+nstfout                 = $freq          ; [steps] freq to write forces to trajectory
+nstlog                  = $freq          ; [steps] freq to write energies to log file
+nstenergy               = $freq          ; [steps] freq to write energies to energy file
+nstxtcout               = $freq          ; [steps] freq to write coordinates to xtc trajectory
+xtc_precision           = 1000          ; [real] precision to write xtc trajectory
+xtc_grps                = System        ; group(s) to write to xtc trajectory
+energygrps              = System        ; group(s) to write to energy file
+
+; 7.3.9 Neighbor Searching
+nstlist                 = 10            ; [steps] freq to update neighbor list
+ns_type                 = grid          ; method of updating neighbor list
+pbc                     = xyz           ; periodic boundary conditions in all directions
+rlist                   = 0.8           ; [nm] cut-off distance for the short-range neighbor list
+
+; 7.3.10 Electrostatics
+coulombtype             = PME-Switch    ; Particle-Mesh Ewald electrostatics
+rcoulomb                = 1.20          ; [nm] distance for Coulomb cut-off
+rlistlong               = 1.15          ; [nm] Cut-off distance for the long-range neighbor list. This parameter is only relevant for a twin-range cut-off setup with switched potentials
+
+; 7.3.11 VdW
+;vdwtype                 = shift         ; twin-range shift with rlist where rvdw >= rlist
+vdwtype                 = Cut-Off
+vdw-modifier            = Force-Switch
+rvdw                    = 0.9           ; [nm] distance for LJ cut-off
+rvdw-switch             = 0.8
+DispCorr                = EnerPres      ; apply long range dispersion corrections for energy
+
+; 7.3.13 Ewald
+fourierspacing          = 0.12          ; [nm] grid spacing for FFT grid when using PME
+pme_order               = 4             ; interpolation order for PME, 4 = cubic
+ewald_rtol              = 1e-5          ; relative strength of Ewald-shifted potential at rcoulomb
+
+; 7.3.14 Temperature Coupling
+;tcoupl                  = nose-hoover   ; temperature coupling with Nose-Hoover ensemble
+tcoupl                  = V-rescale
+tc_grps                 = $tc_grps	; groups to couple seperately to temperature bath
+tau_t                   = $tau_t        ; [ps] time constant for coupling
+ref_t                   = $ref_t        ; [K] reference temperature for coupling
+
+; 7.3.15 Pressure Coupling
+pcoupl                  = Parrinello-Rahman     ; pressure coupling where box vectors are variable
+pcoupltype              = isotropic             ; pressure coupling in x-y-z directions
+tau_p                   = 2.0                   ; [ps] time constant for coupling
+;tau_p                    = 0.5
+compressibility         = 4.5e-5                ; [bar^-1] compressibility
+ref_p                   = 1.0                   ; [bar] reference pressure for coupling
+
+; 7.3.17 Velocity Generation
+gen_vel                 = no            ; velocity generation turned off
+					; we start from equilibration velocities
+; 7.3.18 Bonds
+constraints             = all-bonds     ; convert all bonds to constraints
+constraint_algorithm    = LINCS         ; LINear Constraint Solver
+lincs_order             = 4             ; highest order in the expansion of the contraint coupling matrix
+lincs_iter              = 1             ; number of iterations to correct for rotational lengthening
+;lincs-iter             = 2
+lincs_warnangle         = 30            ; [degrees] maximum angle that a bond can rotate before LINCS will complain
+
+optimize_fft             = yes
+EOF
+
+}
+
+
+# NAME
+#	run_md - run a Molecular Mechanics or Molecular Dynamics simulation
+#
+# SYNOPSIS
+#	run_md simulation coordinates
+#
+# DESCRIPTION
+#	run_md runs a Molecular Mechanics or Molecular Dynamics simulation
+#	using a configuration file named 'simulation.mdp' over a coordinates
+#	and topology dataset.
+#
+#	simulation must be the name of a Gromacs input configuration file
+#	WITHOUT the .mdp extension. This name will be used as the base to
+#	generate the names for subsequent files produced during the run.
+#
+#	coordinates must be the name of the coordinates/topology dataset
+#	files, again WITHOUT extention. The actual atomic coordinates will
+#	be run from a Gromacs or PDB file named 'coordinates.gro' or
+#	'coordinates.pdb', and the topology will be read from a Gromacs
+#	topology file named 'coordinates.top'
+#
+#	The coordinates provided will be used as the starting topology
+#	for the run. Once the run is finished, all files generated will
+#	be named after the provided run-name:
+#
+#		.gro	-- final coordinates in Gromcas format
+#		.pdb	-- final coordinates in PDB format (generated
+#			using the original coordinates as a reference 
+#			to recover chain assignments)
+#		.top	-- final topology
+#		out.mdp	-- the actual parameters used
+#		.tpr .trr .xtc	-- trajectory files (high and low resolution)
+#		_noPBC.xtc	-- trajectory files (PBC removed for analysis)
+#	
+#
+# AUTHOR
+#	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+function run_md {
+    if [ $# -ne 2 ] ; then errexit "md structure"
+    else notecont $* ; fi
+
+    # arguments:
+    #	$1 MDP MD Parameters base name (without MDP extension)
+    #		
+    #	$2 starting structure (without extension)
+    #
+    # Requires
+    #	a .mdp config file for the MD run
+    #	a .pdb or .gro file and a .top file for the MD run
+    #
+    # The results will be named after the .mdp MD configuration file
+    #	$md.gro
+    #	$md.pdb
+    #	$md.top
+    #	$md.tpr
+    #	Optional (may not exist in E.M. runs)
+    #		.trr .xtc _noPDB.xtc
+    local md=$1
+    local struct=$2
+    local top=''
+    local gro=''
+    local pdb=''
+    local coords=''
+    
+    echo ""
+    notecont "Running MD simulation $md on $struct"
+    echo ""
+    
+    # check that the MDP file exists
+    if [ ! -e $md.mdp ] ; then
+    	warncont "$md.mdp does not exist!"
+        return $ERROR
+    fi
+    if [ -e $struct.top ] ; then
+        top=$struct.top
+    else
+        warncont "$struct.top does not exist!"
+        return $ERROR
+    fi
+    # we prefer a .gro file if it exists
+    if [ -e $struct.gro ] ; then
+        coords="$struct.gro"
+        pdb='no'
+        gro='yes'
+    elif [ -e $struct.pdb ] ; then
+        coords="$struct.pdb"
+        pdb='yes'
+    else
+        warncont "$md: No $struct.gro or $struct.pdb file found!"
+        return $ERROR
+    fi
+    
+    make_ext_index $struct
+    
+    if [ -s $md.pdb ] ; then
+        notecont "Final output $md.pdb exists. Assuming the simulation"
+        notecont "has already been run."
+        return $OK
+    else
+	notecont "Running $md simulation."
+        # Run an MD simulation
+	# we will allow at least one warning in case charge is not exact
+	# e.g. a charge of 0.0002 will raise a warning when using Ewald
+	#
+	# It would be better to first try without maxwarn, abd if that
+	# fails, inspect the output for 
+	# 
+	# "You are using Ewald electrostatics in a system with net charge"
+	#
+	# In that case then we should also check for
+	#
+	# "System has non-zero total charge: 0.000"*
+	#
+	# And then retry with -maxwarn 1
+	#
+	# But there are many other potential harmless cases that should be
+	# checked. We could deal with them as they arise. Yeah, probably
+	# we should... To Be Done.
+        $grompp -f $md.mdp -c $coords -r $coords -n $struct.ndx -p $top \
+		-o $md.tpr -maxwarn 1
+        if [ $? -ne 0 ] ; then return $ERROR ; fi
+
+	# MPI and MPInodes are in global setup
+        if [ "$MPI" != 'yes' ] ; then
+            if [ "$gmx" == "" ] ; then
+            	# index option name changed after gromacs 4
+                $mdrun -nt $nthreads -rdd $maxdd-v -deffnm $md -n $struct.ndx
+            else
+                $mdrun -nt $nthreads -rdd $maxdd -v -deffnm $md -mn $struct.ndx
+            fi
+            if [ $? -ne 0 ] ; then return $ERROR ; fi
+        else
+            if [ "$gmx" == "" ] ; then
+            	# index option name changed after gromacs 4
+                mpirun -n $MPInodes $mdrun_mpi -v -deffnm $md -n $struct.ndx
+            else
+                mpirun -n $MPInodes $mdrun_mpi -v -deffnm $md -mn $struct.ndx
+            fi
+            if [ $? -ne 0 ] ; then return $ERROR ; fi
+	fi
+        mv mdout.mdp $md.out.mdp
+
+        # MDRUN produces a GRO file, create corresponding PDB file
+        notecont "Using previous $coords as reference to make $md.pdb"
+	if [ "$pdb" = "yes" ] ; then
+            #index_chains $coords ${struct}_chains.ndx
+            #grondx2pdb $md.gro ${struct}_chains.ndx
+            #
+            # use extended index (with solute, solvent and chains)
+            #grondx2pdb $md.gro Complex_b4em.ndx
+            groref2pdb $md.gro ${struct}.pdb
+	else
+            $editconf -f $md.gro -o $md.pdb
+	fi
+        # Note: this file DOES NOT match the TOP file exactly because
+        #	we assign atoms not in a chain to chain Z, and this
+        #	chain is unknown in the topology
+        
+        # Create a low-resolution XTC trajectory
+        # Minimization runs do not generate trajectories
+        if [ -e $md.trr -a ! -e $md.xtc ] ; then
+            echo "System" | $trjconv -f $md.trr -s $md.tpr -o $md.xtc
+        fi
+        
+	# Correct trajectory to account for PBC
+        if [ -e $md.xtc -a ! -e ${md}_noPBC.xtc ] ; then
+                echo "System" | $trjconv -s $md.tpr -f $md.xtc -o ${md}_noPBC.xtc -pbc mol -ur compact
+        fi
+
+        # both, initial and final systems use the same topology parameters
+        cp $struct.top $md.top
+    fi
+    return $OK
+}
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	analyze_md_run -- analyze a completed MD run
+# #
+# # SYNOPSIS
+# #	analyze_md_run simulation
+# #
+# # DESCRIPTION	
+# #	simulation is the base name used to create all of a run output
+# #	files.
+# #
+# #	analyze_md_run will look for all the files generated by an MD
+# #	simulation and try to run a large battery of analysis tests on
+# #	them.
+# #
+# #	The tests include:
+# #		Generation of auxiliary indexes
+# #		Generation of auxiliary trajectories for solute alone
+# #		Fitting the system to itself
+# #		Graph of potential energy evolution
+# #		Graph of kinetic energy evolution
+# #		Graph of total energy evolution
+# #		Graph of pressure evolution
+# #		Graph of temperature evolution
+# #		Backbone RMSD with respect to original conformation
+# #		Ligand RMSD with respect to original conformation
+# #		Backbone RMSF during the trajectory
+# #		Side chain RMSF during the trajectory
+# #		Ligand RMSF during the trajectory
+# #		Backbone radius of gyration
+# #		Secondary structure changes
+# #		Clusterize trajectory and output central structures in each
+# #			cluster for the system and for the solute
+# #		TO BE ADDED: compute H-bonds between protein and ligands
+# #
+# # AUTHOR
+# #	Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+# #
+# function analyze_md_run {
+#     if [ $# -ne 1 ] ; then echo "Err: ${FUNCNAME[0]} md" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     # arguments: MD run base name
+#     # requirements:
+#     #	$md.tpr		-- topology file
+#     #   $md.gro         -- final coordinates
+#     #	$md.trr		-- original trajectory file
+#     #	$md.xtc		-- low-res trajectory file
+#     #   ${md}_noPDB.xtc	-- low-res trajectory corrected for PBC
+#     #	$md.edr		-- energy evolution
+#     #
+#     #	Complex_water.pdb if water was used in the simulation
+#     #
+#     local md=$1
+#     local ligands=${2:-LIGANDS.ok}
+#     
+#     echo ""
+#     echo "analyze_md_run: Analyzing MD run: $md"
+#     echo ""
+#     
+#     # Minimization runs do not generate trajectories
+#     if [ ! -e $md.trr ] ; then
+#     	echo "analyze_md_run ERROR: No trajectory found for MD run \"$md\"."
+#         return $ERROR
+#     fi
+#     if [ -e ${md}.analysed ] ; then
+#         echo "analyze_md_run: MD run \"${md}\" is already analyzed"
+#         echo "analyze_md_run: remove file $md.analysed to re-analyze"
+#         return $OK
+#     fi
+#     
+#     # ensure we have definitions of solute, solvent and chains
+#     make_ext_index $md
+#     
+#     if grep -q "^\[ SOL \]" $md.ndx ; then
+#         # Create trajectory without the water
+#         echo "Solute" | $trjconv -f $md.xtc -s $md.tpr -o ${md}_complex.xtc -n $md.ndx
+#         echo "Solute" | $tpbconv -s $md.tpr -o ${md}_complex.tpr -n $md.ndx
+#         echo "Solute" | $trjconv -s ${md}_complex.tpr -f ${md}_complex.xtc -o ${md}_complex.gro -dump 0 -n $md.ndx
+#     else
+#         ln -s $md.xtc ${md}_complex.xtc
+#         ln -s $md.tpr ${md}_complex.tpr
+#         ln -s $md.gro ${md}_complex.gro
+#     fi
+# 
+#     # fit system to itself for easier manipulation
+#     $trjconv -s ${md}_complex.tpr -f ${md}_complex.xtc -o ${md}_complex_fit.xtc -fit rot+tran <<END
+# System
+# System
+# END
+# 
+#     # Compute various graphs
+#     echo "Potential"    | $g_energy -f $md.edr -o ${md}_potenergy.xvg
+#     echo "Kinetic-En"   | $g_energy -f $md.edr -o ${md}_kinenergy.xvg
+#     echo "Total-Energy" | $g_energy -f $md.edr -o ${md}_totenergy.xvg
+#     echo "Pressure"     | $g_energy -f $md.edr -o ${md}_pressure.xvg
+#     echo "Temperature"  | $g_energy -f $md.edr -o ${md}_temperature.xvg
+#     #echo "20" | $g_energy -f $md.edr -o ${md}_volume.xvg
+#     #echo "21" | $g_energy -f $md.edr -o ${md}_density.xvg
+#     grace -hardcopy -hdevice SVG -printfile ${md}_potenergy.svg   ${md}_potenergy.xvg   -pexec 'runavg(S0,100)'
+#     grace -hardcopy -hdevice SVG -printfile ${md}_kinenergy.svg   ${md}_kinenergy.xvg   -pexec 'runavg(S0,100)'
+#     grace -hardcopy -hdevice SVG -printfile ${md}_totenergy.svg   ${md}_totenergy.xvg   -pexec 'runavg(S0,100)'
+#     grace -hardcopy -hdevice SVG -printfile ${md}_pressure.svg    ${md}_pressure.xvg    -pexec 'runavg(S0,100)'
+#     grace -hardcopy -hdevice SVG -printfile ${md}_temperature.svg ${md}_temperature.xvg -pexec 'runavg(S0,100)'
+# 
+#     #	1. RMSD (movement w.r.t. original conformation)
+#     #	Show structural stability using ns as time unit
+#     $g_rms -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_complex_rmsd.xvg -tu ns <<END
+# Backbone
+# Backbone
+# END
+# 
+#     # and make an SVG graph with running averages (100 data points)
+#     grace -hardcopy -hdevice SVG -printfile ${md}_complex_rmsd.svg ${md}_complex_rmsd.xvg -pexec 'runavg(S0,100)'
+# 
+#     #	2. RMSF (movility per atom/residue)
+#     #	    
+#     #	backbone
+#     echo "Backbone"  | $g_rmsf -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_complex_rmsf_bb.xvg -oq ${md}_complex_rmsf_bb.pdb -res
+#     
+#     grace -hardcopy -hdevice SVG -printfile ${md}_complex_rmsf_bb.svg ${md}_complex_rmsf_bb.xvg -pexec 'runavg(S0,100)' 
+#     
+#     #	side chains
+#     echo "SideChain" | $g_rmsf -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_complex_rmsf_sc.xvg -oq ${md}_complex_rmsf_sc.pdb
+# 
+#     grace -hardcopy -hdevice SVG -printfile ${md}_complex_rmsf_sc.svg ${md}_complex_rmsf_sc.xvg -pexec 'runavg(S0,100)'
+# 
+#     #	non-protein (ligands)
+#     if [ -s Ligands.pdb ] ; then
+#         echo "non-Protein" | $g_rmsf -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_complex_rmsf_np.xvg -oq ${md}_complex_rmsf_np.pdb
+#         grace -hardcopy -hdevice SVG -printfile ${md}_complex_np_rmsf.svg ${md}_complex_np_rmsf.xvg -pexec 'runavg(S0,100)'
+#     fi
+# 
+# 
+#     #	3. Radius of gyration (compactness and stability of the structure)
+#     #	backbone
+#     # The radius of gyration of a protein is a measure of its compactness. If a 
+#     # protein is stably folded, it will likely maintain a relatively steady value 
+#     # of R_g. If a protein unfolds, its R_g will change over time. 
+#     #
+#     echo "Backbone" | $g_gyrate -s ${md}_complex.tpr -f ${md}_complex.xtc -o ${md}_complex_gyr.xvg
+# 
+#     #	4. Compute secondary structure changes
+#     #
+#     echo "compute secondary structure"
+#     $do_dssp -f ${md}_complex.xtc -s ${md}_complex.tpr -sc ${md}_complex_scount.xvg -o ${md}_complex_ss.xpm -dt 10 <<END
+# MainChain
+# END
+# 
+#     grace -nxy ${md}_complex_scount.xvg -hardcopy -hdevice SVG -printfile ${md}_complex_scount.svg
+# 
+#     cat > ps.m2p <<END
+# ; Matrix options
+# titlefont       = Helvetica     ; Matrix title Postscript Font name
+# titlefontsize   = 20.0          ; Matrix title Font size (pt)
+# legend          = yes           ; Show the legend
+# legendfont      = Helvetica     ; Legend name Postscript Font name
+# legendfontsize  = 12.0          ; Legend name Font size (pt)
+# legendlabel                     ; Used when there is none in the .xpm
+# legend2label                    ; Id. when merging two xpm s
+# xbox            = 20.0           ; x-size of a matrix element
+# ybox            = 2.0          ; y-size of a matrix element
+# matrixspacing   = 20.0          ; Space between 2 matrices
+# xoffset         = 0.0           ; Between matrix and bounding box
+# yoffset         = 0.0           ; Between matrix and bounding box
+# 
+# ; X-axis options
+# x-lineat0value  = no            ; Draw line at matrix value==0
+# x-major         = 100.0        ; Major tick spacing
+# x-minor         = 50.0         ; Id. Minor ticks
+# x-firstmajor    = 0.0           ; Offset for major tick
+# x-majorat0      = no            ; Additional Major tick at first frame
+# x-majorticklen  = 8.0           ; Length of major ticks
+# x-minorticklen  = 4.0           ; Id. Minor ticks
+# x-label         =               ; Used when there is none in the .xpm
+# x-font          = Helvetica     ; Axis label PostScript Font
+# x-fontsize      = 12            ; Axis label Font size (pt)
+# x-tickfont      = Helvetica     ; Tick label PostScript Font
+# x-tickfontsize  = 8             ; Tick label Font size (pt)
+# 
+# ;Y-axis options
+# y-lineat0value  = no
+# y-major         = 10.0
+# y-minor         = 5.0
+# y-firstmajor    = 0.0
+# y-majorat0      = no
+# y-majorticklen  = 8.0
+# y-minorticklen  = 4.0
+# y-label         =
+# y-fontsize      = 12
+# y-font          = Helvetica
+# y-tickfontsize  = 8
+# y-tickfont      = Helvetica
+# END
+# 
+#     $xpm2ps -f ${md}_complex_ss.xpm -di ps.m2p -o ${md}_complex_ubq_ss.eps
+# 
+# 
+# 
+#     #	5. Clusterize trajectory and output central structures in
+#     #	each cluster.
+#     #g_cluster -s md_complex.tpr -f md_complex.trr -dist rmsd-distribution.xvg \
+#     #	-o clusters.xpm -sz cluster-sizes.xvg -tr cluster-transitions.xpm \
+#     #        -ntr cluster-transitions.xvg -clid cluster-id-over-time.xvg \
+#     #        -cl clusters.pdb -cutoff 0.25 -method gromos -dt 10 [ -av ]
+#     $g_cluster -s $md.tpr -f $md.trr -cl ${md}_clusters.pdb -cutoff 5 \
+# 	    -method gromos -dt 10 -dist ${md}_rmsd-dist.xvf  -o ${md}_rmsd-clust.xpm <<END
+# Protein
+# System
+# END
+#     # and now get the cluster average structures
+#     $g_cluster -s $md.tpr -f $md.xtc -cl ${md}_clustav.pdb -cutoff 5 \
+# 	    -method gromos -dt 10 -av -dist ${md}_av_rmsd-dist.xvf  -o ${md}_av_rmsd-clust.xpm <<END
+# Protein
+# System
+# END
+#     grep -q "^\[ SOL \]" $md.ndx
+#     if [ $? -eq 0 ] ; then
+#         # and now repeat for the complex alone
+#         $g_cluster -s ${md}_complex.tpr -f ${md}_complex.trr -cl ${md}_clusters.pdb -cutoff 5 \
+# 	        -method gromos -dt 10 -dist ${md}_complex_rmsd-dist.xvf  -o ${md}_complex_rmsd-clust.xpm <<END
+# Protein
+# System
+# END
+#         # and now get the cluster average structures
+#         $g_cluster -s ${md}_complex.tpr -f ${md}_complex.xtc -cl ${md}_clustav.pdb -cutoff 5 \
+# 	        -method gromos -dt 10 -av -dist ${md}_complex_av_rmsd-dist.xvf  -o ${md}_complex_av_rmsd-clust.xpm <<END
+# Protein
+# System
+# END
+#     fi
+# 
+#     # protein surface area
+#     $g_sas -s ${md}.tpr -f ${md}.xtc -o ${md}_protein_sasa.xvg -tv ${md}_protein_vol.xvg <<END
+# Protein
+# Protein
+# END
+#     grace -hardcopy -hdevice SVG -printfile ${md}_protein_sasa.svg ${md}_protein_sasa.xvg -pexec 'runavg(S0,100)'
+#     grace -hardcopy -hdevice SVG -printfile ${md}_protein_vol.svg ${md}_protein_vol.xvg -pexec 'runavg(S0,100)'
+#     
+#  
+#     # for all ligands
+#     # count H-bonds (protein vs. ligands)
+#     #	Luckily, when the Complex is generated a group named 'Other'
+#     #	is generated that includes all non-protein elements (without solvent)
+#     if [ -s $ligands ] ; then
+#         echo ""
+#         echo ">>> Analyzing ligands and ligand interactions"
+#         echo ""
+# 
+# 	#
+#         # ligand (non-protein) RMSD and RMSF
+#     	#
+#         $g_rms -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_nonprot_rmsd.xvg -tu ns <<END
+# non-Protein
+# non-Protein
+# END
+# 	grace -hardcopy -hdevice DVG -printfile ${md}_nonprot_rmsd.svg ${md}_nonprot_rmsd.xvg -pexec 'runavg(S0,100)'
+# 
+#         echo "non-Protein"  | $g_rmsf -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_nonprot_rmsf.xvg -oq ${md}_nonprot_rmsf.pdb
+#         grace -hardcopy -hdevice SVG -printfile ${md}_nonprot_rmsf.svg ${md}_nonprot_rmsf.xvg -pexec 'runavg(S0,100)' 
+# 
+#         while read lig charge ; do
+#             # for each ligand
+#             $g_rms -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_${lig}_rmsd.xvg -tu ns <<END
+# $lig
+# $lig
+# END
+# 	    grace -hardcopy -hdevice DVG -printfile ${md}_${lig}_rmsd.svg ${md}_${lig}_rmsd.xvg -pexec 'runavg(S0,100)'
+# 
+#             echo "$lig"  | $g_rmsf -s ${md}_complex.tpr -f ${md}_complex_fit.xtc -o ${md}_${lig}_rmsf.xvg -oq ${md}_${lig}_rmsf.pdb
+#             grace -hardcopy -hdevice SVG -printfile ${md}_${lig}_rmsf.svg ${md}_${lig}_rmsf.xvg -pexec 'runavg(S0,100)' 
+#         done <$ligands
+#         
+# 
+# 	#
+#         # H-bonds between Protein and ligands
+#         #
+#         $g_hbond -f $md.xtc -s $md.tpr \
+# 	        -num ${md}_hbnum.xvg -ac ${md}_hbac.xvg \
+#                 <<END
+# Protein
+# Other
+# END
+#     	grace -hardcopy -hdevice SVG -printfile ${md}_hbnum.svg ${md}_hbnum.xvg -pexec 'runavg(S0,100)'
+#     	grace -hardcopy -hdevice SVG -printfile ${md}_hbac.svg ${md}_hbac.xvg -pexec 'runavg(S0,100)'
+# 
+#         # for each ligand
+#         #
+#         #	XXX JR XXX HACK HACK HACK HACK HACK HACK
+#         #
+#         #	WE HAVE A PROBLEM if Solvent has been used:
+#         #	gromacs duplicates the ligand groups, and so we cannot
+#         #	select then independently by name
+#         #
+#         #	On the other hand: the motivating behaviour is
+#         #	a known bug in Gromacs that has been assigned
+#         #	low priority because groups can still be selected
+#         #	by number.
+#         #
+#         #	use $md_complex.gro if it exists (implies solvent existed)
+#         #	  to make an index file without solvent interference
+#         #	else use $md.ndx instead (if there is no solvent there is no problem)
+#         #
+#         #	We could use the index of Complex_b4ion.pdb or Complex.pdb as a guide
+#         #	instead. This works because solvent is added AFTER the original 
+#         #	Complex and, so, the coordinate offsets in Complex.pdb are preserved.
+#         #	But that would imply using a hardcoded value and is a 'no-no'.
+#         #
+#         if grep -q "^\[ SOL \]" $md.ndx ; then
+#             echo "q" | $make_ndx -f ${md}_complex.pdb -o ${md}_complex.ndx
+#             ndx=${md}_complex.ndx
+#         else
+#             ndx=$md.ndx
+#         fi
+#         #
+#         while read lig charge ; do
+#             $g_hbond -f $md.xtc -s $md.tpr -n $ndx\
+# 	            -num ${md}_hb_${lig}_num.xvg -ac ${md}_hb_${lig}_ac.xvg \
+#                     <<END
+# Protein
+# $lig
+# END
+#     	    grace -hardcopy -hdevice SVG -printfile ${md}_hb_${lig}_num.svg ${md}_hb_${lig}_num.xvg -pexec 'runavg(S0,100)'
+#             grace -hardcopy -hdevice SVG -printfile ${md}_hb_${lig}_ac.svg ${md}_hb_${lig}_ac.xvg -pexec 'runavg(S0,100)'
+# 
+#         done < $ligands
+# 
+# 	#
+#         # Solvent Accessible Surface Area and volume
+#         #
+# 
+#         # create an index of protein plus all ligands
+#         #	This works because group Other was created before addition
+#         #	of water and contains only the ligands with no solvent
+#         $make_ndx  -f md.tpr -o pro+lig.ndx <<END
+# "Protein"|"Other"
+# q
+# END
+#         # use the extended group to compute an "extended" protein
+#         # surface area (protein + ligands)
+#         $g_sas -s ${md}.tpr -f ${md}.xtc -o ${md}_complex_sasa.xvg -tv ${md}_complex_vol.xvg \
+#     	    -n pro+lig.ndx <<END
+# Protein_Other
+# Protein_Other
+# END
+#         #
+#     	grace -hardcopy -hdevice SVG -printfile ${md}_complex_sasa.svg ${md}_complex_sasa.xvg -pexec 'runavg(S0,100)'
+#     	grace -hardcopy -hdevice SVG -printfile ${md}_complex_vol.svg ${md}_complex_vol.xvg -pexec 'runavg(S0,100)'
+# 
+#     fi
+# 
+#     touch ${md}.analysed
+# 
+# }
+# 
+    echo -n ''
+else
+    source $FUNCS_BASE/analyze_md_run.bash
+fi
+
+
+function index_chains {
+    if [ $# -ne 2 ] ; then errexit "pdbfile index"
+    else notecont $* ; fi
+
+    # arguments:
+    #	$1 the PDB file whose chains are to be indexed
+    #   $s the output index file
+    #
+    local pdb=$1
+    local ndx=$2
+    
+    echo ""
+    notecont "making a chain index for $pdb as $ndx"
+    echo ""
+    
+    # Make chain index file for all possible one-letter chains
+    # first, assign any unassigned ATOM or HETATM to chain Z
+    #	this is needed for e.g. SOL atoms
+    cat $pdb | sed -e '/\(^ATOM  \|^HETATM\).\{15\} / s/^\(.\{21\}\) /\1Z/g' > $pdb.pdb
+    (
+        for i in {A..Z} ; do
+	    echo "chain $i"
+        done
+        echo "q"
+    ) | $make_ndx -f $pdb.pdb -o $ndx
+    rm $pdb.pdb
+}
+
+function grondx2pdb {
+    if [ $# -ne 2 ] ; then errexit "grofile index" ; exit 1 
+    else notecont $* ; fi
+
+    # arguments:
+    #	$1 the gromacs format structure file where all chains have been
+    #		merged as a series of irregularly connected atoms
+    #	$2 an index file that matches atoms to chains
+    #
+    #	The output will be a file with the same name as the .gro file
+    #	but ending in .pdb instead.
+    #
+    local gro=$1
+    local index=$2
+
+    local pdb=`basename $gro .gro`.pdb
+    local chid=''
+
+    echo ""
+    notecont "Making a PDB file from $gro using index in $index"
+    echo ""
+
+    # for each indexed chain, extract it and add its chain ID
+    echo "MODEL" >> $pdb
+    for i in `grep "\[ ch" $index | cut -f 2 -d' '` ; do 
+        notecont "Extracting $i"
+        echo $i | \
+            $trjconv -pbc nojump -f $gro -n $index -o $i.pdb -s $gro
+        chid=`echo $i | cut -b3-`
+        notecont "Adding $chid"
+        # change ".(21) " by ".(21)X"
+        egrep "(^ATOM)|(^HETATM)|(^TER)" $i.pdb |\
+            sed "/\(^ATOM\|^HETATM\)/ s/^\(.\{21\}\) /\1$chid/g" >> $pdb
+        rm $i.pdb
+    done 
+    echo "ENDMDL" >> $pdb
+
+
+    # A problem still remains with long atom names which start with a
+    # number instead of the atom ID (usually H).
+
+    # match first 12 chars, a number and three chars (only in ATOM lines)
+    # substitute to place the number at the end
+    cat $pdb | sed -e '/^ATOM/ s/^\(.\{12\}\)\([0-9]\)\(...\)/\1\3\2/g' > $pdb.ok
+    mv $pdb.ok $pdb
+}
+
+if [ "$inline" == "yes" ] ; then
+# # NAME
+# #	groref2pdb.sh -- convert a multichain GRO file to PDB using another
+# #		PDB file as reference
+# #
+# # SYNOPSIS
+# #	groref2pdb.sh -- input.gro reference.pdb
+# #
+# # AUTHOR(S)
+# #	(C) Jos´e R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es 2014
+# #
+# function groref2pdb {
+#     if [ $# -ne 2 ] ; then echo "Err: ${FUNCNAME[0]} grofile ref.pdb" ; exit 1 
+#     else echo -e "\n>>> ${FUNCNAME[0]}" $* ; fi
+# 
+#     local gro=$1
+#     local ref=$2
+# 
+#     echo ""
+#     echo "groref2pdb: making a PDB file from $gro using $ref as a reference"
+#     echo ""
+# 
+#     if [ ! -e $gro -o ! -e $ref ] ; then
+#         echo "Cannot find both $gro and $ref. Do they really exist?"
+#         return $ERROR
+#     fi
+# 
+#     local index=`basename $ref .pdb`.ndx
+#     local pdb=`basename $gro .gro`.pdb
+#     local chid=''
+# 
+#     # Ref is a reference file in PDB format generated by pdb2gmx -chainsep id_or_ter
+#     #	or prferably the last PDB used before MDRUN (e.g. after adding water
+#     #	and ions), it will be used to know how many chains there are
+#     #
+#     # Gro is the Gromacs file in GRO format we want to convert to PDB keeping the
+#     #	chain-IDs. The reason for needing a Ref is that Gro files do not keep
+#     #	Chain-IDs, we want one with the same number of atoms classified by
+#     #	the correponding chains.
+# 
+#     # index all possible chains
+#     # first ensure everything is in a chain by adding atoms not in a chain to Z
+#     #	THIS SHOULD HAVE BEEN DONE EARLIER
+#     cat $ref | sed -e '/\(^ATOM  \|^HETATM\).\{15\} / s/^\(.\{21\}\) /\1Z/g' > $ref.pdb
+#     (
+#         for i in {A..Z} ; do
+# 	    echo "chain $i"
+#         done
+#         echo "q"
+#     ) | $make_ndx -f $ref.pdb -o $index
+#     rm $ref.pdb
+# 
+# 
+#     # for each indexed chain, extract it and add its chain ID
+#     echo "MODEL" >> $pdb
+# 
+#     for i in `grep "\[ ch" $index | cut -f 2 -d' '` ; do 
+#         echo $i
+#         echo $i | \
+#             $trjconv -pbc nojump -f $gro -n $index -o $i.pdb -s $gro
+#         chid=`echo $i | cut -b3-`
+#         #echo $chid
+#         # change ".(21) " by ".(21)X"
+#         egrep "(^ATOM)|(^HETATM)|(^TER)" $i.pdb |\
+#             sed "/\(^ATOM\|^HETATM\)/ s/^\(.\{21\}\) /\1$chid/g" >> $pdb
+#         #egrep "(^ATOM)|(^HETATM)|(^TER)" $i.pdb |\
+#         #    sed "/\(^ATOM\|^HETATM\)/ s/^\(.\{21\}\) /\1$chid/g" > $i.ok.pdb  
+#         rm $i.pdb
+#     done 
+#     echo "ENDMDL" >> $pdb
+# 
+#     # A problem still remains with long atom names which are start with a
+#     # number instead of the atom ID (usually H, e.g. 1HO5' instead of
+#     # HO5'1).
+# 
+#     # match first 12 chars, a number and three chars (only in ATOM lines)
+#     # substitute to place the number at the end
+#     cat $pdb | sed -e '/^ATOM/ s/^\(.\{12\}\)\([0-9]\)\(...\)/\1\3\2/g' > $pdb.ok
+#     mv $pdb.ok $pdb
+# }
+    echo -n ''
+else
+    source $FUNCS_BASE/groref2pdb.bash
+fi
+
+
+# function gmx_trj_subsample() {
+#     trj_name="${1:-md}"		# trajectory base name
+#     step_ps=${2:-1}		# save frames every $step_ps picoseconds
+#     subset=$"{3:-System}"
+#     
+#     if [ -s "${trj_name}".xtc ] ; then
+#         trj="${trj_name}".xtc
+#     elif [ -s "${trj_name}".trr ] ; then
+#         trj="${trj_name}".trr
+#     else
+#         echo "Error: ${trj_name}.xtc/trr does not exist"
+#         return 1
+#     fi
+# 
+#     if [ -s "${trj_name}".tpr ] ; then
+#         tpr="${trj_name}".tpr
+#     elif [ -s topol.tpr ] ; then
+#         tpr=topol.tpr
+#     else
+#         echo "Error: no ${trj_name}.tpr and no topol.tpr"
+#         return 2
+#     fi
+#     
+#     if [ -s "${trj_name}".ndx ] ; then
+#         index="-n '${trj_name}.ndx'"
+#     else
+#         index=''
+#     fi
+#     
+#     if [ "$subset" = "System" ] ; then
+#         out=${trj_name}_every_${step_ps}ps.xtc 
+#     else
+#         out=${trj_name}_${subset}_every_${step_ps}ps.xtc 
+#     fi
+#     
+#     echo "$subset" \
+#     | gmx trjconv \
+#         -f $trj \
+#         -s $tpr \
+#         -dt $step_ps \
+#         -o "$out" \
+#         $index
+# 
+#     # Call the program with gmx
+#     # Select the trjconv command
+#     # Select the -f flag and provide the starting trajectory ($trj_name.xtc)
+#     # Choose the -s flag and enter the .tpr file
+#     # The -dt flag allows us to reduce the number of frames in the output. 
+#     #   In our case, we will write one frame every ${step_ps}ps in our 
+#     #   output file.
+#     # Call the -o flag and decide how you want to name the output file 
+#     #   (${trj_name}_${step_ps}ps.xtc)
+#     # You may also want to include an index file you previously created 
+#     #   ($trj_name.ndx) via the -n flag. In this way, you can cut the 
+#     #   trajectory and, at the same time, select only a specific part of 
+#     #   the system you are interested in. GROMACS will still provide you 
+#     #   with a default index file.
+# 
+# }
+# 
+# function gmx_trr_to_xtc() {
+#     trj_name="${1:-md}"
+#     step_ps=${2}		# save frames every $step_ps picoseconds
+#     subset="${3:-System}"		# subset of the system to save (default all)
+# 
+#     if [ -s "${trj_name}".trr ] ; then
+#         xtc="${trj_name}".trr
+#     else
+#         echo "Error: ${trj_name}.xtc does not exist"
+#         return 1
+#     fi
+# 
+#     if [ -s "${trj_name}".tpr ] ; then
+#         tpr="${trj_name}".tpr
+#     elif [ -s topol.tpr ] ; then
+#         tpr=topol.tpr
+#     else
+#         echo "Error: no ${trj_name}.tpr and no topol.tpr"
+#         return 2
+#     fi
+#     
+#     if [ -s "${trj_name}_${subset}".xtc ] ; then
+#         echo "Error: ${trj_name}_${subset}.xtc already exists, not converting"
+#         return 3
+#     else
+#         out="${trj_name}_${subset}".xtc
+#     fi
+#     
+#     if [ -s "${trj_name}".ndx ] ; then
+#         index="-n '${trj_name}.ndx'"
+#     else
+#         index=''
+#     fi
+# 
+#     if [ "$step_ps" = "" ] ; then
+#         $step='' 
+#     else
+#         $step="-d $step_ps"
+#         if [ "$subset" = "System" ] ; then
+#             out="${trj_name}_each_${step_ps}ps".xtc
+#         else
+#             out="${trj_name}_${subset}_every_${step_ps}ps".xtc
+#         fi
+#     fi
+# 
+#     echo "$subset" \
+#     | gmx trjconv \
+#         -f $trr \
+#         -s $tpr \
+#         -o $out \
+#         $step \
+#         $index
+# 
+#     # Call the program with gmx
+#     # Select the trjconv command
+#     # Select the -f flag and provide the starting trajectory in the trr format
+#     # Choose the -s flag and enter the .tpr file
+#     # Call the -o flag and decide how you want to name the resulting trajectory
+#     #     file in the xtc format (system.xtc)
+#     # You can also use the -dt flag to reduce the number of frames in the
+#     #     output as already explained.
+#     # Also in this case, you may be interested in including an index file you
+#     #    previously created (index.ndx) via the -n flag.
+# 
+# }
+# 
+# function gmx_trj_from_to() {
+#     trj_name="${1:-md}"
+#     from=${2:-0}
+#     to=${3:-100}
+#     subset="${4:-System}"
+# 
+#     if [ -s "${trj_name}".xtc ] ; then
+#         trj="${trj_name}".xtc
+#     elif [ -s "${trj_name}".trr ] ; then
+#         trj="${trj_name}".trr
+#     else
+#         echo "Error: ${trj_name}.xtc/trr does not exist"
+#         return 1
+#     fi
+# 
+# 
+#     if [ -s "${trj_name}".tpr ] ; then
+#         tpr=$"{trj_name}".tpr
+#     elif [ -s topol.tpr ] ; then
+#         tpr=topol.tpr
+#     else
+#         echo "Error: no ${trj_name}.tpr and no topol.tpr"
+#         return 2
+#     fi
+#     
+#     
+#     if [ -s "${trj_name}".ndx ] ; then
+#         index="-n '${trj_name}ndx'"
+#     else
+#         index=''
+#     fi
+#     
+#     if [ $from -gt $to ] ; then
+#         echo "Error: $from greater than $to"
+#         return 3
+#     fi
+#     if [ $from -eq $to ] ; then
+#         ext=gro		# we only want a single frame, output structure file
+#     else
+#         ext="xtc"
+#     fi
+# 
+#     if [ "$subset" = "System" ] ; then
+#         out="${trj_name}_${from}-${to}.${ext}"
+#     else
+#         out="${trj_name}_${subset}_${from}-${to}.${ext}"
+#     fi
+# 
+#     echo "$subset" \
+#     | gmx trjconv \
+#         -f $trj \
+#         -s $tpr \
+#         -b $from \
+#         -e $to \
+#         -o "$out" \
+#         $index
+# 
+#     # Call the program with gmx
+#     # Select the trjconv command
+#     # Select the -f flag and provide the starting trajectory in the 
+#     #    preferred format (system.xtc)
+#     # Choose the -s flag and enter the .tpr file (system.tpr)
+#     # The -b flag signals the starting frame for the new trajectory (0 ps)
+#     # The -e flag tells the program the final frame (100 ps)
+#     # Call the -o flag and decide the name of the output file 
+# 
+# }
+# 
+# function gmx_trj_extract_frame() {
+#     trj_name="${1:-md}"
+#     time_ps=${2:-0}
+#     subset="${3:-System}"
+# 
+#     if [ -s "${trj_name}".xtc ] ; then
+#         trj="${trj_name}".xtc
+#     elif [ -s "${trj_name}".trr ] ; then
+#         trj="${trj_name}".trr
+#     else
+#         echo "Error: ${trj_name}.xtc/trr does not exist"
+#         return 1
+#     fi
+# 
+# 
+#     if [ -s "${trj_name}".tpr ] ; then
+#         tpr="${trj_name}".tpr
+#     elif [ -s topol.tpr ] ; then
+#         tpr=topol.tpr
+#     else
+#         echo "Error: no ${trj_name}.tpr and no topol.tpr"
+#         return 2
+#     fi
+#     
+#     if [ -s "${trj_name}"_${subset}_${time_ps}ps.gro ] ; then
+#         echo "Error: $trj_name.gro already exists"
+#         return 3
+#     fi
+#     
+#     
+#     if [ -s "${trj_name}".ndx ] ; then
+#         index="-n '${trj_name}.ndx'"
+#     else
+#         index=''
+#     fi
+#     
+#     if [ "$subset" = "System" ] ; then
+#         out="${trj_name}_at_${time_ps}ps.gro"
+#     else
+#         out="${trj_name}_${subset}_at_${time_ps}ps.gro"
+#     fi
+# 
+#     echo "$subset" \
+#     | gmx trjconv \
+#         -f "$trj" \
+#         -s "$tpr" \
+#         -dump $time_ps \
+#         -o "$out" \
+#         $index
+# 
+# 
+# }
+# 
+# function gmx_center_noPBC() {
+#     name=${1:system}
+#     center=${2:Protein}		# group to center
+#     subset=${3:System}		# group to output
+# 
+#     if [ -s "${name}".gro ] ; then
+#         struct="${name}".gro
+#         ext="gro"
+#     elif [ -s "${name}".pdb ] ; then
+#         struct="${name}".pdb
+#         ext="pdb"
+#     elif [ -s "${name}".xtc ] ; then
+#         struct="${name}".xtc
+#         ext="xtc"
+#     elif [ -s "${name}".trr ] ; then
+#         struct="${name}".trr
+#         ext="xtc"
+#     else
+#         echo "Error: no $name.{grp|pdb|trr|xtc} found"
+#         return 1
+#     fi
+# 
+#     if [ -s "${name}".tpr ] ; then
+#         tpr="${name}".tpr
+#     elif [ -s topol.tpr ] ; then
+#         tpr=topol.tpr
+#     else
+#         echo "Error: no ${trj_name}.tpr and no topol.tpr"
+#         return 2
+#     fi
+# 
+#     if [ -s "${name}".ndx ] ; then
+#         index="-n '${name}.ndx'"
+#     else
+#         index=''
+#     fi
+# 
+#     if [ "$subset" = "System" ] ; then
+#         out="${name}_center_${center}_noPBC.$ext"
+#     else
+#         out="${name}_${subset}_center_${center}_noPBC.$ext"
+#     fi
+# 
+#     (echo "$center" ; echo "$subset") \
+#     | gmx trjconv \
+#         -f $struct \
+#         -s $tpr \
+#         -pbc mol \
+#         -center \
+#         -ur compact \
+#         -o "$out" \
+#         $index
+# 
+# }
+# 
+# function gmx_gro_to_pdb() {
+#     name=${1:-system}
+#     subset=${2:-System}
+#     
+#     if [ "$subset" = "System" ] ; then
+#         out="$name.pdb"
+#     else
+#         out="$name"_"$subset".pdb
+#     fi
+#     
+#     if [ -s "${name}".ndx ] ; then
+#         index="-n '${name}.ndx'"
+#     else
+#         index=''
+#     fi
+# 
+#     echo "$subset" \
+#     | gmx trjconv \
+#         -s "$name".tpr \
+#         -f "$name".gro \
+#         -o "$out" \
+#         -pbc whole \
+#         -conect \
+#         $index
+#         
+# 	# -pbc whole => make all broken molecules whole
+# }
+# 
+# function gmx_check() {
+# # only for .xtc, .trr, .cpt, .gro, .g96, .pdb, .tng
+#     gmx check -f $1
+# }
+# 
+# function gmx_dump() {
+# # only for .xtc, .trr, .cpt, .gro, .g96, .pdb, .tng
+#     gmx dump -f $1
+# }
+# 
+# function gmx_continue_md_from_checkpoint() {
+#     cpt="${1:-state}"		# default is state.cpt
+#     
+#     if [ ! -s "$cpt".cpt -o ! -s "$cpt".tpr ] ; then
+#         echo "Error: $cpt.{cpt|tpr} does not exist"
+#         return 1
+#     fi
+# 
+#     #gmx mdrun -cpi "$cpt".cpt -s "$cpt".tpr -noappend
+#     # this will require concatenating the new trajectory output
+#     # with the old one
+#     # NOTE: noappend should not be needed and then gromacs should
+#     # continue expanding the previous files!!!
+#     
+#     gmx mdrun -cpi "$cpt" -s "$cpt".tpr -deffnm "$cpt"
+#     # this should append at the end and not require concatenation
+#     # the -deffnm is required so that gromacs uses the prefix to
+#     # find the proper output files
+# }
+# 
+# function gmx_extend_trj_ps() {
+#     name=${1:-md}
+#     timetoextendby=${2:1000}
+#     
+#     previous="$name"
+#     next="${previous}+${timetoextendby}ps}"
+#     
+#     gmx convert-tpr -s "$previous.tpr" -extend $timetoextendby -o "$next.tpr"
+#     gmx mdrun -s "$next.tpr" -cpi "$previous".cpt -deffnm "$next" -noappend
+# 
+# }
+# 
+# function gmx_extend_trj_until_ps() {
+#     name=${1:-md}
+#     endtime=${2:-1000}
+#     
+#     previous="$name"
+#     $next="${previous}_${timetoextendby}ps}"
+#     
+#     gmx convert-tpr -s "$previous.tpr" -until $endtime -o "$next.tpr"
+#     gmx mdrun -s "$next.tpr" -cpi "$next".cpt -deffnm "$next" -noappend
+# }
+# 
+# function gmx_extend_trj_steps() {
+#     name=${1:-md}
+#     nsteps=${2:-1000}
+#     
+#     previous="$name"
+#     $next="${previous}+${nsteps}steps}"
+#     
+#     gmx convert-tpr -s "$previous.tpr" -nsteps $nsteps -o "$next.tpr"
+#     gmx mdrun -s "$next.tpr" -cpi "$next".cpt -deffnm "$next" -noappend
+# }
+# 
+# function gmx_trj_concat() {
+#     md=${1:-md}
+#     
+#     #gmx trjcat -f traj_1.xtc traj_2.xtc -o final_traj.xtc (-settime)
+#     # get a trajectory with correct time steps
+#     #    yes c | gmx trjcat -f `ls -r ${md}_*trr | tr '\n# ' ' '` -settime -o ${md}.ok.trr
+# 
+# 
+#     if [ ! -s ${md}.trr -a ! -e ${md}.xtc ] ; then
+#         echo "MD trajectory $md.trr/xtc does not exist! Trying to build it..."
+#         echo "	We will use \${md}_\$no.trr for \$no=1 to n"
+#         # use -conect to preserve bonds in coarse grained trajectories or when
+#         # including non-protein molecules when converting to PDB
+# 
+#         cmdtrr="yes c | gmx trjcat -cat -settime -o ${md}.trr -f"
+#         cmdxtc="yes c | gmx trjcat -cat -settime -o ${md}.xtc -f"
+#         cmdedr="yes c | gmx eneconv -settime -o ${md}.edr -f"
+#         i=1
+#         while [ -e ${md}_$i.trr ] ; do    
+#             # prepare command to make trajectory
+#             cmdtrr="${cmdtrr} ${md}_${i}.trr"
+# 
+# 	    # prepare command to make compressed trajectory
+# 	    if [ ! -s  ${md}_${i}.xtc ] ; then
+# 	        echo System | gmx trjconv -o ${md}_${i}.xtc \
+# 	            -f ${md}_${i}.trr -s ${md}_${i}.tpr
+# 	    fi
+#             cmdxtc="${cmdxtc} ${md}_${i}.xtc"
+# 
+#             # prepare command to make energy file
+# 	    if [ -s ${md}_$i.edr ] ; then
+# 	        cmdedr="${cmdedr} ${md}_${i}.edr"
+#             else
+#                 echo "WARNING: ${md}_${i}.edr DOES NOTE EXIST!"
+#                 echo "	Your ENERGY plots will be unreliable"
+#             fi
+# 
+# 	    # preserve the original topology
+# 	    if [ ! -s ${md}.tpr ] ; then
+#                 # use the last topology available
+# 	        #cp ${md}_${i}.tpr ${md}.tpr
+# 	        # only use the first topology (next iterations will find that a
+# 	        # topology does already exist
+#                 cp ${md}_1.tpr ${md}.tpr
+# 
+# 	    fi
+# 
+#             # ensure last output structure is preserved
+# 	    cp ${md}_$i.gro ${md}.gro
+# 
+# 
+#             i=$((i + 1))
+#         done
+#         if [ $i -ne 1 ] ; then
+# 	    eval $cmdtrr
+# 	    eval $cmdxtc
+# 	    eval $cmdedr
+#         else
+#             echo "	No partial sub-trajectories ${md}_* found!"
+#             echo "	EXITING"
+#             exit
+#         fi
+# 
+#     fi
+# 
+#     if [ ! -e ${md}.edr ] ; then
+#         echo "ERROR: ${md}.edr FILE DOES NOT EXIST"
+#         echo "EXITING"
+#         exit
+#     fi
+# 
+# }
+# 
+# function gmx_trj_first_frame()
+#     md=${1:-md}
+# 
+#     # save first frame
+#     echo System | gmx trjconv -f ${md}.xtc -s ${md}.tpr -o ${md}.0.gro \
+#          -dump 0 -pbc mol
+#     echo System | gmx trjconv -f ${md}.xtc -s ${md}.tpr -o ${md}.0.pdb \
+#          -dump 0 -pbc mol -conect
+# 
+# }
+# 
+# 
+function rmsd_vs_ref() {
+    ref="$1"	# e.g. reference.pdb
+    trj="$2"	# e.g. md_01.xtc
+    match="$3"  # e.g. A=B,B=C,...
+
+    declare -a ref_chains
+    declare -a trj_chains
+
+    local rf="${ref##*/}"	# filename with no dir
+    local re="${ref##*.}"	# extension (pdb or gro)
+    local rn="${rf%.*}"		# name
+    if [ ! -e "$ref" ] ; then
+        echo "rmsd_vs_ref: $ref not found!"
+        return
+    else
+        # make a local copy
+        if [ ! -e $rf ] ; then
+            cp $ref $rf
+        fi
+    fi
+
+    local tf="${trj##*/}"	# filename with no dir
+    local te="${trj##*.}"	# extension (pdb or gro)
+    local tn="${tf%.*}"		# name
+    if [ ! -e "$trj" ] ; then
+        echo "rmsd_vs_ref: $trj not found!"
+        return
+    else
+        # make a local copy
+        if [ ! -e $tf ] ; then
+            cp $trj $tf
+        fi
+	if [ ! -e $tn.tpr ] ; then
+            # this way we do not assume a specific trajectory type
+            cp `echo $trj | sed -e "s/\.$te\$/\.tpr/g"` $tn.tpr
+        fi
+    fi
+    
+    # parse chain correspondence list of the form
+    # A=A,B=C,...
+    # where the left side of an equal refers to the chain-id in the
+    # reference and the right side to the chain-id in the trajectory
+    ref_chains=( `echo "$match" | sed -e 's/=.//g' -e 's/,/ /g'` )
+    trj_chains=( `echo "$match" | sed -e 's/.=//g' -e 's/,/ /g'` )
+    nrefch=${#ref_chains[@]}
+    ntrjch=${#trj_chains[@]}
+    if [ $nrefch -ne $ntrjch ] ; then
+        echo "rmsd_vs_ref: invalid match sequence $match"
+        return
+    fi
+    echo "rmsd_vs_ref: matching chains are $match"
+    echo "rmsd_vs_ref: reference chains are ${ref_chains[@]}"
+    echo "rmsd_vs_ref: trajectory chains are ${trj_chains[@]}"
+
+    # set the reference structure
+    if [ "$re" != "pdb" ] ; then
+        if [ "$re" == "gro" ] ; then
+            if [ -e "$rn.tpr" ] ; then
+                gmx trjconv -f "$rf" -s "$rn.tpr" -o "$rn.pdb"
+            else
+                gmx editconf -f "$rf" -o "$rn.pdb"
+            fi
+        elif [ "$re" == ".brk" -o "$re" == "ent" ] ; then
+            cp $rf $rn.pdb
+        else
+            echo "rmsd_vs_ref: unknown reference format (.$re)"
+        fi
+    fi
+    # and index it
+    $BASE/make_ext_index.sh $rn.pdb
+    
+    
+    # obtain the first structure in the trajectory to ensure
+    # that the reference used is superposed to the matched
+    # structure at the beginning of the trajectory
+    if [ ! -e $tn.0.pdb ] ; then
+        echo System | gmx trjconv -f $tf -s $tn.tpr \
+            -o $tn.0.pdb \
+            -dump 0 -pbc mol -conect
+    fi
+    
+    if [ ! -e reference.pdb ] ; then
+        mkdir -p str-align
+        # align the reference molecule to the first structure in the trajectory
+        cp $rn.pdb   str-align
+        cp $tn.0.pdb str-align
+
+        cd str-align
+        # superpose the structures
+        theseus_align -o $tn.0.pdb -f $tn.0.pdb $rn.pdb \
+            |& tee theseus.stdouterr
+
+        # index the superposed structures
+        $BASE/make_ext_index.sh theseus_$rn.pdb
+        $BASE/make_ext_index.sh theseus_$tn.0.pdb
+        cd ..
+        cp str-align/theseus_$rn.pdb reference.pdb
+    fi
+
+    if [ ! -e ref_rmsd.xvg ] ; then
+        # Obtain overall RMSD (which will include the PBMs)
+        gmx rms -s reference.pdb \
+                -f $tf \
+                -o ref_rmsd.xvg \
+                -tu ns \
+                << END
+C-alpha
+C-alpha
+END
+    fi
+
+    # make a PNG plot 1000x1000
+    rm ref_rmsd.PNG 
+    grace -hardcopy -hdevice PNG \
+          -printfile ref_rmsd.PNG \
+          ref_rmsd.xvg \
+          -pexec 'runavg(S0,100)' \
+          -fixed 1000 1000 
+    #display ref_rmsd.PNG
+
+    # Check if we have any chains to compare specifically
+    if [ $nrefch -eq 0 ] ; then return ; fi
+
+    # Create new groups to join the reference chains and extract their C-alpha
+    (
+        # build a group joining all reference chains
+        # eg. chain A | chain B
+        echo -n "chain ${ref_chains[0]}"
+        #for i in $(seq 1 ${#ref_chains[*]}) ; do 
+        for (( i=1; i<$nrefch; i++ )) ; do 
+            echo -n " | chain ${ref_chains[$i]}"
+        done
+        echo ""
+        # intersect reference chains with C-alpha
+        # e.g. "chA_chB" | "C-alpha"
+        echo -n "\"ch${ref_chains[0]}"
+        for (( i=1; i<$nrefch; i++ )) ; do 
+            echo -n "_ch${ref_chains[$i]}"
+        done
+        echo "\" & \"C-alpha\""
+        # write index
+        echo "q"
+    ) |& gmx make_ndx -f reference.pdb -o reference.ndx 
+
+    # Create new groups to join the match chains and extract their C-alpha
+    (
+        # build a group joining all reference chains
+        # eg. chain A | chain B
+        echo -n "chain ${trj_chains[0]}"
+        #for i in $(seq 1 ${#trj_chains[*]}) ; do 
+        for (( i=1; i<$ntrjch; i++ )) ; do 
+            echo -n " | chain ${trj_chains[$i]}"
+        done
+        echo ""
+        # intersect reference chains with C-alpha
+        # e.g. "chA_chB" | "C-alpha"
+        echo -n "\"ch${trj_chains[0]}"
+        for (( i=1; i<$ntrjch; i++ )) ; do 
+            echo -n "_ch${trj_chains[$i]}"
+        done
+        echo "\" & \"C-alpha\""
+        # write index
+        echo "q"
+    ) | gmx make_ndx -f $tn.0.pdb -o $tn.0.ndx 
+
+    # Compute RMSD using the md_01.0.ndx index so we can select the C-alpha
+    # of the desired chains
+    # first we need to build the comparison groups
+    (
+        # C-alpha in reference chains
+        # e.g. chA_chB_&_C-alpha
+        echo -n "ch${ref_chains[0]}"
+        for (( i=1; i<$nrefch; i++ )) ; do 
+            echo -n "_ch${ref_chains[$i]}"
+        done
+        echo "_&_C-alpha"
+        
+        # C-alpha in trajectory chains
+        # e.g. chA_chC_&_C-alpha
+        echo -n "ch${trj_chains[0]}"
+        for (( i=1; i<$ntrjch; i++ )) ; do 
+            echo -n "_ch${trj_chains[$i]}"
+        done
+        echo "_&_C-alpha"
+    ) \
+    | gmx rms -s reference.pdb \
+            -f $tf \
+            -o ref_rmsd_CA_$match.xvg \
+            -tu ns \
+            -n $tn.0.ndx 
+
+    # make a PNG plot 1000x1000
+    rm ref_rmsd_CA_$match.PNG 
+    grace -hardcopy -hdevice PNG \
+          -printfile ref_rmsd_CA_$match.PNG \
+          ref_rmsd_CA_$match.xvg \
+          -pexec 'runavg(S0,100)' \
+          -fixed 1000 1000
+    #display ref_rmsd_CA_$match.PNG
+
+    return
+}
+
+source $FUNCS_BASE/gmx_center_noPBC.bash
+#source $FUNCS_BASE/gmx_append_trj.bash
+source $FUNCS_BASE/gmx_extend_trj_ps.bash
+source $FUNCS_BASE/gmx_extend_trj_until_ps.bash
+source $FUNCS_BASE/gmx_extend_trj_steps.bash
+source $FUNCS_BASE/gmx_gro_to_pdb.bash
+source $FUNCS_BASE/gmx_trj_concat.bash
+source $FUNCS_BASE/gmx_trj_extract_frame.bash
+source $FUNCS_BASE/gmx_trj_frame.bash
+source $FUNCS_BASE/gmx_trj_from_to.bash
+source $FUNCS_BASE/gmx_trj_subsample.bash
+source $FUNCS_BASE/gmx_trr_to_xtc.bash
+

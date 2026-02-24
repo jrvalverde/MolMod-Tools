@@ -1,0 +1,6 @@
+source include.bash
+
+include include.bash
+include util_funcs.bash
+notecont util_funcs  included
+banner OK

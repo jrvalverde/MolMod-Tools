@@ -1,0 +1,236 @@
+#!/bin/bash
+#
+# NAME
+#	extract_ligands - extract ligands from a PDB file
+#
+# SYNOPSIS
+#	extract_ligands input.pdb {LIGANDS]
+#
+# DESCRIPTION
+#	Extract the ligands from a complex specified by input.pdb
+#
+#	On exit, the file input.pdb will have been depleted from all
+#	ligands, and the ligands will each have been saved in a separate
+#	file named after the ligand's PDB entry name.
+#
+#	Currently, it also generates the topology parameter files for
+#	each ligand using ACPYPE.
+#
+#	An optional parameter "LIGANDS" can be used to specify a text file
+#	containing a list of the ligands to extract. This file is assumed
+#	to have the format "ligand charge", where ligand is the PDB code 
+#	of the ligand, and charge a number with the charge that is to be
+#	assigned to it. If the charge is missing, it will be assumed to be
+#	zero (0).
+#
+#	If the optional LIGANDS file is provided, then only the ligands
+#	specified in this file will be saved, and any others will be
+#	deleted.
+#
+#	In any case, whether the LIGANDS file is provided or not, a
+#	LIGANDS.OK file will be generated at the end listing all the
+#	ligands extracted and their charges.
+#
+# AUTHOR
+#	José R. Valverde, CNB/CSIC. jrvalverde@cnb.csic.es, 2014
+#
+#	Licensed under (at your option) either GNU/GPL or EUPL
+#
+# LICENSE:
+#
+#	Copyright 2014 JOSE R VALVERDE, CNB/CSIC.
+#
+#	EUPL
+#
+#       Licensed under the EUPL, Version 1.1 or \u2013 as soon they
+#       will be approved by the European Commission - subsequent
+#       versions of the EUPL (the "Licence");
+#       You may not use this work except in compliance with the
+#       Licence.
+#       You may obtain a copy of the Licence at:
+#
+#       http://ec.europa.eu/idabc/eupl
+#
+#       Unless required by applicable law or agreed to in
+#       writing, software distributed under the Licence is
+#       distributed on an "AS IS" basis,
+#       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#       express or implied.
+#       See the Licence for the specific language governing
+#       permissions and limitations under the Licence.
+#
+#	GNU/GPL
+#
+#       This program is free software: you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation, either version 3 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+
+function extract_ligands {
+    if [ $# -lt 1 ] ; then errexit "pdbfile [ligandfile] [topology] [chargeModel] [ff]"
+    else notecont $* ; fi
+
+    # go over each ligand, one by one, and extract it from the original file
+    # after we finish, the original file contains everything it originally
+    # contained EXCEPT for the ligands extracted
+    # if a ligands file is provide, only ligands listed in it are
+    # extracted, and the charge specified in the file is used
+
+    local pdb=$1		# usually ./Ligands.pdb or ./OrigComplex.pdb or some such
+    local ligands=${2:-'LIGANDS'}	# usually ./LIGANDS
+    local topology=${3:-'default'}	# to be deleted?
+    local ff=${4:-'oplsaa'}	# to be deleted?
+    # global addHmethod
+
+    if [ "$ligands" = "default" ] ; then ligands='LIGANDS' ; fi
+    
+    # a list of ligands to ignore 
+    #
+    #	These ligands will not be removed, will not be entered
+    # into the $ligands.ok file, will not be parametrized and will
+    # be left as part of the stripped-down $pdb file) as HETATM
+    #
+    #	We assume the force-field used will already have parameters
+    # defined for these.
+    #
+    local known_ligands='(MG)|(NA)|(CL)|(CA)|(HOH)|(SO4)|(IOD)|(GOL)|(PO4)'
+    #local known_ligands='DO_NOT_IGNORE_ANYTHING'
+    
+    # provide defaults for external variables
+    local babel=${babel:-`which babel`}
+
+    if [ ! -e $pdb ] ; then
+        warncont "$1 not found" ; return $ERROR
+    fi
+    local dir=`dirname $pdb`
+    local fin="${pdb##*/}"
+    local ext="${fin##*.}"
+    local nam="${fin%.*}"
+    if [ ! "$ext" == "pdb" -a ! "$ext" == "brk" ] ; then
+        wanrcont "Input file must be a PDB file."
+        return $ERROR
+    fi
+
+
+    echo ""
+    notecont "extracting ligands from $pdb"
+    echo ""
+
+    rm -f LIGANDS.OK	# we'll rebuild it on the go
+
+    if [ ! -e "$ligands" ] ; then
+        # try to figure out ligand list
+        # avoiding common ions and "boring" ligands
+        grep '^HETATM' $pdb | cut -c18-21 | uniq | \
+	egrep -v $known_ligands
+    else
+        # get list of ligands from file provided
+        # only ligands listed in the file will be used
+        #cut -f1 $ligands
+        cat $ligands
+    fi | \
+    while read lig charge ; do
+        # find out charge for the ligand
+        if [ "$charge" == '' ] ; then 
+            charge="0"
+        fi
+
+        echo ""
+        # echo $lig $charge $mult
+        banner "$lig $charge"
+        echo ""
+
+	if [ ! -s $lig.pdb ] ; then
+            # extract ligand with the H already added
+            # and remove it from the protein
+            if [ $addHmethod == 'babel' ] ; then
+	        notecont "extracting $lig using babel"
+        	#
+        	#	CONECT records in the input file refer to all
+        	#	molecules, and therefore, we would need to 
+        	#	distinguish which ones belong to this ligand
+        	#	to extract only those. It is easier to do it
+        	#	this way: we extract only the (het)atoms, and then
+        	#	use babel to rebuild the connectivity.
+        	#
+        	grep -h "^HETATM.\{10\} $lig" $pdb | \
+    	            $babel -ipdb - -opdb - | \
+                    egrep '(^ATOM)|(^HETATM)|(^CONECT)' > $lig.pdb
+
+    		# remove ligand from protein
+    		grep -v "^HETATM.\{10\} $lig" $pdb > tmpProt.pdb
+        	mv tmpProt.pdb $pdb
+	    else
+	        notecont "extracting $lig using chimera"
+      		# for all the other cases, use Chimera    
+    		# Using Chimera helps keep/remove the CONECT records
+		$chimera --nogui <<END
+                    open $pdb
+                    select #0:$lig
+                    write selected format pdb 0 het$lig.pdb
+                    delete #0:$lig
+                    write format pdb 0 $pdb
+                    stop now
+END
+		egrep '(^ATOM)|(^HETATM)|(^CONECT)' het$lig.pdb > $lig.pdb
+		rm -f het$lig.pdb
+	    fi
+	fi
+
+	# check if the ligand file is empty (the ligand was not present)
+        # and make the topology
+	#	should we check $lig.itp instead?
+	if [ -s $lig.pdb ] ; then
+            make_ligand_topologies $lig.pdb $charge $topology $ff
+            
+            echo ""
+            notecont "$lig	$charge ($ligands)"
+            echo "$lig	$charge" >> $ligands.OK
+            notecont "$lig	$charge ($ligands.OK)"
+	else
+            echo ""
+            warncont "could not extract $lig. CONTINUING"
+            echo ""
+            # we'll not stop, but allow the extraction to continue
+            # with other ligands.
+        fi
+    done
+    # Ensure any remaining, non-wanted ligand is removed
+    #	THIS IS NOT TO BE USED IF WE ALLOW KNOWN LIGANDS TO STAY
+    #	AS WE DO NOW.
+    #
+    if [ "$cleanup_after_ligand_removal" == "yes" ] ; then
+    	#echo "Removing any other ligands"
+    	#egrep '(^ATOM)|(^TER)|(^ANISOU)' $pdb > tmpProt.pdb
+    	#mv tmpProt.pdb $pdb
+        /bin/echo -n ''
+    fi
+
+    return $OK
+}
+
+
+#[[ $0 != $BASH_SOURCE ]] && echo "Script is being sourced" || echo "Script is being run"
+#check if we are being sourced:
+# as an included script we do not want to execute anything
+if [[ $0 == $BASH_SOURCE ]] ; then
+    # if we are not being included by other file, then we are being
+    # called as an independent program. Set "INCLUDE=yes" to include
+    # all the necessary files and do our work.
+    INCLUDE="yes"
+    FUNCS_BASE=`dirname $0`
+    . $FUNCS_BASE/setup_cmds.sh
+    . $FUNCS_BASE/make_ligand_topologies
+
+    extract_ligands $*
+fi
